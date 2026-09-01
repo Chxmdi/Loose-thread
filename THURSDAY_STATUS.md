@@ -167,7 +167,7 @@ runbook. The integrated run caught and fixed pgvector `Vector` normalization in 
 suppression, now covered by a real-Postgres regression test.
 
 Verification:
-- Backend checks pass with Ruff, strict MyPy, and 37 tests; the Docker image serves `/health` on
+- Backend checks pass with Ruff, strict MyPy, and 38 tests; the Docker image serves `/health` on
   nondefault `PORT=9123`.
 - `make demo-seed` and `make demo-reset` pass against local Supabase Auth/Postgres.
 - The real local smoke passes twice consecutively: capture -> jobs -> real OpenAI agents -> pgvector
