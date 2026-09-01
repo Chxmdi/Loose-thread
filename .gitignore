@@ -1,0 +1,42 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+services/api/.venv/
+
+# Node / Expo
+node_modules/
+.expo/
+dist/
+web-build/
+apps/mobile/.env*
+!apps/mobile/.env.example
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+
+# Coverage / outputs
+.coverage
+htmlcov/
+coverage.xml
+evals/results/*.json
+
+# Local Supabase
+supabase/.temp/
+
+# User/demo data
+*.wav
+*.m4a
+*.mp3
+*.sqlite
+*.sqlite3
