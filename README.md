@@ -25,20 +25,34 @@ docs/exec-plans/active/       active implementation plan
 ```
 
 ## Backend quick start
-```bash
-cp .env.example .env
+```powershell
+Copy-Item .env.example .env
 make backend-install
 make backend-dev
 ```
 
 Health endpoint: `GET /health`
 
+Run the durable worker in a second terminal:
+
+```powershell
+uv run --directory services/api python -m loose_thread_api.orchestration
+```
+
 ## Checks
 ```bash
 make check
 ```
 
-Once the real vertical slice is implemented:
-```bash
+Real-service validation requires the demo environment described in
+[`docs/DEMO_RUNBOOK.md`](./docs/DEMO_RUNBOOK.md):
+
+```powershell
+make eval
+make demo-seed
+make demo-reset
 make demo-smoke
 ```
+
+Deployment uses [`render.yaml`](./render.yaml) to run the API and durable worker from the same
+[`services/api/Dockerfile`](./services/api/Dockerfile).

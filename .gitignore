@@ -6,6 +6,7 @@
 # Python
 __pycache__/
 *.py[cod]
+*.egg-info/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -16,6 +17,8 @@ services/api/.venv/
 node_modules/
 .expo/
 dist/
+test-results/
+playwright-report/
 web-build/
 apps/mobile/.env*
 !apps/mobile/.env.example
@@ -30,6 +33,9 @@ apps/mobile/.env*
 htmlcov/
 coverage.xml
 evals/results/*.json
+e2e/results/*.json
+.demo-state.json
+.failure-state.json
 
 # Local Supabase
 supabase/.temp/

@@ -1,0 +1,10 @@
+{"id":"multi_thought","type":"interpreter","input":"Email Sam about the launch. Also research quiet keyboards.","expect":{"min_thoughts":2,"kinds":["task","research"]}}
+{"id":"tentative_commitment","type":"interpreter","input":"Maybe I could email Sam about the launch.","expect":{"max_commitment":"possible","literal_fragments":["Maybe"]}}
+{"id":"quoted_obligation","type":"interpreter","input":"Sam said, \"I must send the launch notes tonight.\"","expect":{"max_commitment":"possible","literal_fragments":["Sam said"]}}
+{"id":"explicit_time","type":"interpreter","input":"Remind me to call Priya at 3 PM on September 4, 2026.","expect":{"temporal_literals":["3 PM","September 4, 2026"]}}
+{"id":"ambiguous_time","type":"interpreter","input":"Look at the budget later.","expect":{"temporal_literals":["later"],"resolved_at":false}}
+{"id":"incomplete_fragment","type":"interpreter","input":"The onboarding draft, especially the part about...", "expect":{"min_thoughts":1,"kinds":["unfinished"]}}
+{"id":"feeling_not_advice","type":"interpreter","input":"I feel anxious about presenting the roadmap.","expect":{"min_thoughts":1,"kinds":["feeling"],"forbid_kinds":["task"]}}
+{"id":"transcription_noise","type":"interpreter","input":"Uh remember maybe the blue folder no wait the green folder for taxes.","expect":{"min_thoughts":1,"max_thoughts":2}}
+{"id":"malformed_response","type":"schema_rejection","input":{"schema_version":"1.0","thoughts":[{"raw_fragment":"missing required fields"}]},"expect":{"rejected":true}}
+{"id":"resumption_faithfulness","type":"resumption","selected":"Prepare the Thursday product demo.","evidence":[{"id":"10000000-0000-4000-8000-000000000001","refined_text":"The capture and retrieval flows work locally.","relation_type":"supports"},{"id":"10000000-0000-4000-8000-000000000002","refined_text":"Hosted deployment credentials are still unavailable.","relation_type":"blocks"}],"expect":{"required_citations":1,"forbidden_phrases":["deployed successfully","demo is complete","production is live"]}}

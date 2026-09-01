@@ -1,60 +1,175 @@
-# Loose Thread — Thursday Demo Runbook
+# Loose Thread Thursday Demo Runbook
 
 **Demo date:** Thursday, September 3, 2026  
 **Feature freeze:** Wednesday night, September 2, 2026
 
-Codex must keep this runbook synchronized with the implementation. By feature freeze it must contain exact deployed URLs/commands, environment prerequisites, reset/seed instructions, recovery steps, and verified expected outputs.
+The configured hosted Supabase project is reachable, but it currently has no Loose Thread tables and
+anonymous sign-ins are disabled. Its database connection and the Render deployment are not
+configured yet. No code changes are needed after those external settings are supplied.
 
-## Pre-demo gates
-- [ ] All P0 implementation issues are complete.
-- [ ] Required environment variables are configured outside git.
-- [ ] Database migrations are applied to the demo Supabase project.
-- [ ] Demo seed/reset command is documented and tested.
-- [ ] Backend `/health` passes.
-- [ ] Worker is running and claiming jobs.
-- [ ] `make demo-smoke` passes twice consecutively against real services.
-- [ ] Mobile client points to the deployed backend.
-- [ ] Offline/no-loss capture fallback has been manually verified.
-- [ ] No code changes are required on Thursday morning.
+## Required Environment
 
-## Target demo story
-1. Launch directly into capture.
-2. Capture: “Ask Maya if the launch deck is ready, and maybe figure out why the recommendation model treats ‘not now’ like dislike.”
-3. Show immediate local-save confirmation.
-4. Briefly show diagnostics: capture -> durable job -> Interpreter Agent -> two structured thoughts -> embedding/linking jobs.
-5. Emphasize that the first clause remains a commitment while the second stays tentative/open-loop.
-6. Capture: “Actually, timing might need to be its own feature because not now can mean interested later.”
-7. Show Continuity Agent linking the related thoughts.
-8. Choose “I have 15 minutes.”
-9. Show at most three deterministically ranked options.
-10. Select the recommendation-model open loop.
-11. Show Resumption Agent restoring grounded context with evidence from linked thought IDs.
-12. Add a continuation thought.
-13. End the session with fit/outcome feedback.
-14. Show persisted feedback plus internal job/agent/retrieval diagnostics.
-15. Optional reliability proof: disconnect network/model path and show capture still persists locally for later processing.
+Server-only values:
 
-## Commands
-Codex must replace placeholders with exact verified commands.
+```text
+ENVIRONMENT=production
+DATABASE_URL=<Supabase direct or session-pooler Postgres URL>
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_PUBLISHABLE_KEY=<publishable key; legacy SUPABASE_ANON_KEY also works>
+OPENAI_API_KEY=<server key>
+CORS_ORIGINS=<Expo web origin, comma-separated if needed>
+```
 
-```bash
-# install / run backend
+Smoke runner values:
+
+```text
+DEMO_API_URL=https://<deployed-api-host>
+DEMO_SUPABASE_URL=https://<project-ref>.supabase.co
+DEMO_SUPABASE_ANON_KEY=<publishable/anon key>
+SUPABASE_SECRET_KEY=<only required by make demo-reset; legacy service-role also works>
+```
+
+Never put `OPENAI_API_KEY`, `DATABASE_URL`, or `SUPABASE_SERVICE_ROLE_KEY` in Expo variables.
+
+## Local Start
+
+Start Docker Desktop, then run from the repository root:
+
+```powershell
+$env:Path = "$([Environment]::GetEnvironmentVariable('Path','Machine'));$([Environment]::GetEnvironmentVariable('Path','User'))"
+npx --yes supabase@2.116.0 start
+npx --yes supabase@2.116.0 db reset
 make backend-install
-make backend-dev
+```
 
-# validation
-make check
+Load local Supabase values into each PowerShell terminal without writing them to disk:
+
+```powershell
+$values = @{}
+npx --yes supabase@2.116.0 status -o env | ForEach-Object {
+  if ($_ -match '^([^=]+)="?(.*?)"?$') { $values[$matches[1]] = $matches[2].TrimEnd('"') }
+}
+$env:DATABASE_URL = $values.DB_URL
+$env:SUPABASE_URL = $values.API_URL
+$env:SUPABASE_ANON_KEY = $values.ANON_KEY
+$env:DEMO_SUPABASE_URL = $values.API_URL
+$env:DEMO_SUPABASE_ANON_KEY = $values.ANON_KEY
+$env:SUPABASE_SERVICE_ROLE_KEY = $values.SERVICE_ROLE_KEY
+$env:DEMO_API_URL = 'http://127.0.0.1:8000'
+```
+
+Run the API and worker in separate terminals:
+
+```powershell
+make backend-dev
+uv run --directory services/api python -m loose_thread_api.orchestration
+```
+
+Expected health response at `http://127.0.0.1:8000/health`:
+
+```json
+{"status":"ok","service":"loose-thread-api"}
+```
+
+## Deployment
+
+1. Enable anonymous sign-ins on the configured dedicated Supabase project.
+2. Supply its database password, link it with `npx supabase link --project-ref <project-ref>`, and run
+   `npx supabase db push --linked`.
+3. Deploy the repository's `render.yaml` Blueprint. It creates `loose-thread-api` and
+   `loose-thread-worker` from the same verified Docker image.
+4. Set the server-only values above on both services. Render supplies `PORT` to the web service.
+5. Set `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SUPABASE_URL`, and
+   `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` for the mobile build.
+6. Verify the deployed `/health`, API logs, and worker job claims before seeding.
+
+Production startup fails with a list of missing credential names. The Docker image was verified to
+serve `/health` on a nondefault `PORT=9123`.
+
+## Demo Data
+
+The corpus uses synthetic text and a real anonymous Auth user. Its session state is stored only in
+ignored `.demo-state.json`.
+
+```powershell
+make demo-seed
+make demo-reset
+```
+
+`make demo-reset` deletes the anonymous Auth user through the admin API; ownership cascades remove
+the corpus. No key, token, user record, or generated result is committed.
+
+## Smoke Gate
+
+```powershell
+make backend-check
+make eval
+make demo-smoke
 make demo-smoke
 ```
 
-## Recovery plan
-Before feature freeze, document exact recovery for:
-- backend unavailable,
-- worker stopped,
-- OpenAI request failure,
-- Supabase connectivity failure,
-- mobile device loses network,
-- demo corpus needs reset,
-- agent job dead-letters.
+Each smoke run creates a fresh anonymous user and proves:
 
-The recovery plan must preserve the core product truth: a capture is never lost merely because downstream AI/infrastructure is unavailable.
+```text
+health -> auth -> two captures -> durable jobs -> Interpreter -> embeddings -> Continuity
+-> deterministic <=3 retrieval -> persisted scores -> grounded Resumption -> session
+-> spawned thought -> outcome -> RLS-visible feedback and trace metadata
+```
+
+Expected final lines include eight `PASS` stages followed by `Demo smoke passed`. Redacted evidence
+is written to ignored `e2e/results/latest.json`. The Thursday gate counts only when both consecutive
+runs target `DEMO_API_URL` and `DEMO_SUPABASE_URL` for the deployed services.
+
+## Failure Proof
+
+Pause the worker, then run:
+
+```powershell
+make demo-failure-retain
+```
+
+It must report that raw capture evidence and its durable job remain queued. Restart the worker and
+run:
+
+```powershell
+make demo-failure-recover
+```
+
+The exact same capture must complete real processing. The Expo Playwright smoke separately proves a
+text capture remains in local storage across backend failure and page restart.
+
+## Demo Script
+
+1. Open the capture-first app and enter the first 15-minute recommendation-model thought.
+2. Show immediate local save, then the capture/job/agent diagnostics.
+3. Enter the related continuation and show the persisted Continuity run.
+4. Choose 15 minutes and show at most three code-ranked cards plus score diagnostics.
+5. Select the related open loop and show the Resumption summary with evidence IDs.
+6. Start the session, choose `Something new came up`, and capture the continuation.
+7. Show `session_completed`, `thought_spawned`, and retrieval feedback events.
+8. Use the failure proof only if time permits; do not alter code during the demo.
+
+## Recovery
+
+- **API unavailable:** keep the mobile capture locally, restart `loose-thread-api`, then retry sync.
+- **Worker stopped:** restart `loose-thread-worker`; queued jobs claim automatically.
+- **OpenAI failure:** inspect `/v1/debug/jobs`; retry-wait jobs retain raw source and back off.
+- **Supabase unavailable:** do not clear the local queue. Restore connectivity, then retry sync.
+- **Dead job:** correct the credential/provider cause, inspect its safe error code, then requeue only
+  that verified job from an authenticated operator session.
+- **Bad demo corpus:** run `make demo-reset`, then `make demo-seed`.
+- **Hosted outage fallback:** run the same Docker image, local Supabase, API, worker, and Expo client
+  on the demo laptop. State clearly that this is fallback evidence, not the hosted completion gate.
+
+## Freeze Checklist
+
+- [x] Backend lint, strict types, tests, pgTAP, evals, and Docker build pass locally.
+- [x] Local real-service smoke passes end to end.
+- [x] Worker-pause retention and recovery proof passes.
+- [x] Seed/reset commands pass without committing demo state.
+- [ ] Configured hosted Supabase project is migrated and anonymous auth is enabled.
+- [ ] Render API and worker are deployed with production credentials.
+- [ ] Deployed `/health` passes.
+- [ ] `make demo-smoke` passes twice consecutively against deployed services.
+- [ ] Expo is pointed at deployed services and verified on a native device/simulator.
+- [ ] Feature freeze is declared; Thursday requires no code edits.

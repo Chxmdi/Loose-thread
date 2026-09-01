@@ -1,27 +1,49 @@
-SHELL := /bin/bash
 API_DIR := services/api
 
-.PHONY: backend-install backend-dev backend-test backend-lint backend-typecheck backend-check check demo-smoke
+.PHONY: backend-install backend-dev backend-test backend-lint backend-typecheck backend-check scripts-check mobile-check check eval demo-seed demo-reset demo-failure-retain demo-failure-recover demo-smoke
 
 backend-install:
-	cd $(API_DIR) && python -m pip install -e '.[dev]'
+	uv sync --directory $(API_DIR) --extra dev
 
 backend-dev:
-	cd $(API_DIR) && python -m uvicorn loose_thread_api.main:app --reload --port $${PORT:-8000}
+	uv run --directory $(API_DIR) python -m uvicorn loose_thread_api.main:app --reload --port $(or $(PORT),8000)
 
 backend-test:
-	cd $(API_DIR) && python -m pytest -q
+	uv run --directory $(API_DIR) python -m pytest -q
 
 backend-lint:
-	cd $(API_DIR) && python -m ruff check src tests
+	uv run --directory $(API_DIR) python -m ruff check src tests
 
 backend-typecheck:
-	cd $(API_DIR) && python -m mypy src
+	uv run --directory $(API_DIR) python -m mypy src
 
 backend-check: backend-lint backend-typecheck backend-test
 
-check: backend-check
+scripts-check:
+	uv run --directory $(API_DIR) python -m ruff check ../../scripts ../../evals
+	uv run --directory $(API_DIR) python -m ruff format --check ../../scripts ../../evals
+
+mobile-check:
+	npm --prefix apps/mobile run typecheck
+	npm --prefix apps/mobile test
+
+check: backend-check scripts-check mobile-check
 	@echo "Repository checks passed."
 
+eval: backend-check
+	uv run --directory $(API_DIR) python ../../evals/run.py
+
 demo-smoke:
-	bash scripts/demo_smoke.sh
+	uv run --directory $(API_DIR) python ../../scripts/e2e_demo.py
+
+demo-seed:
+	uv run --directory $(API_DIR) python ../../scripts/demo_data.py seed
+
+demo-reset:
+	uv run --directory $(API_DIR) python ../../scripts/demo_data.py reset
+
+demo-failure-retain:
+	uv run --directory $(API_DIR) python ../../scripts/failure_demo.py retain
+
+demo-failure-recover:
+	uv run --directory $(API_DIR) python ../../scripts/failure_demo.py recover
