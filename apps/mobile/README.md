@@ -1,12 +1,14 @@
-# Loose Thread Mobile
+# Loose Thread mobile
 
-Codex should initialize this directory as an Expo TypeScript app during the Thursday sprint. Preserve this directory-level `AGENTS.md`.
+Expo/React Native client for the Thursday vertical slice.
 
-Required demo screens:
-1. Capture (voice + text)
-2. Capture confirmation/pending state
-3. Capacity selection
-4. Up to three retrieval cards
-5. Resume/session view
-6. Outcome feedback
-7. Optional debug/agent-run view if time permits
+```bash
+npm install
+npm run typecheck
+npm test
+npm start
+```
+
+Configure `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SUPABASE_URL`, and
+`EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Native capture records use SQLite; voice recordings are
+created in the app document directory before upload is attempted.

@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "Loose Thread",
+    "slug": "loose-thread",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "loosethread",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.loosethread.mobile"
+    },
+    "android": {
+      "package": "app.loosethread.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#F3F4EF"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-sqlite",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow Loose Thread to save a voice thought.",
+          "enableBackgroundRecording": false
+        }
+      ],
+      "expo-asset"
+    ]
+  }
+}
