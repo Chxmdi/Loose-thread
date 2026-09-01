@@ -14,6 +14,8 @@ dependencies = [
   "pydantic-settings",
   "openai-agents",
   "httpx",
+  "asyncpg>=0.31.0",
+  "pgvector>=0.4.2",
 ]
 
 [project.optional-dependencies]
@@ -27,15 +29,24 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+loose_thread_api = ["agents/prompts/*.md"]
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+asyncio_mode = "auto"
 
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+src = ["src"]
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
 packages = ["loose_thread_api"]
+
+[[tool.mypy.overrides]]
+module = ["asyncpg", "asyncpg.*"]
+ignore_missing_imports = true

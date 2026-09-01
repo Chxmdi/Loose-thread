@@ -22,6 +22,18 @@ The final retrieval set is selected by deterministic eligibility + scoring + bou
 ## 2026-09-01 — Supabase as the demo platform foundation
 Use Supabase Postgres/Auth/Storage/pgvector. Invisible anonymous auth provides a real authenticated user identity for the demo while preserving the account-light first-run product experience. Service-role credentials remain server-only.
 
+## 2026-09-01 — Explicit Supabase grants and owner columns
+Every user-owned public table carries a non-null user ID, including relationship and join tables,
+so RLS and cross-owner foreign keys are simple and auditable. Data API auto-exposure is disabled;
+authenticated access is granted explicitly, and internal worker/vector functions live in a private
+schema. This is more verbose than parent-only ownership but reduces authorization ambiguity under
+the Thursday deadline.
+
+## 2026-09-01 — Fixed 1536-dimension demo embeddings
+The Thursday schema uses 1536-dimension vectors and an HNSW cosine index, matching the intended
+small embedding model. Supporting a different embedding dimension requires a migration rather
+than silently mixing incompatible vectors.
+
 ## 2026-09-01 — Postgres-backed jobs before Redis/Temporal
 For the deadline, use a Postgres durable queue with atomic claiming, leases, attempts, retry/backoff, dead-letter state, and idempotency keys. This minimizes infrastructure while preserving production-shaped behavior.
 

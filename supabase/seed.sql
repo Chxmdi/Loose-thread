@@ -1,0 +1,2 @@
+-- Demo rows are seeded through `make demo-seed` so they belong to a real anonymous Auth user.
+-- Keeping this migration-time seed empty prevents credentials or user-shaped data entering git.
