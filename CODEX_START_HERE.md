@@ -1,15 +1,27 @@
 # Codex: Start Here
 
-Read `AGENTS.md`, then execute `docs/exec-plans/active/THURSDAY-DEMO.md` in priority order.
+## Primary instruction
+Read [`CODEX_MASTER_PROMPT.md`](./CODEX_MASTER_PROMPT.md), then follow it as the implementation contract for the Thursday demo.
 
-The goal is not to produce scaffolding. The goal is to get the real Thursday end-to-end path working against real Supabase/OpenAI services as soon as credentials are available.
+## Execution control plane
+Use these sources in this order:
 
-Begin with:
-1. inspect repository and active plan;
-2. update `THURSDAY_STATUS.md` with a concrete milestone breakdown;
-3. implement the initial Supabase schema/RLS and backend data contracts;
-4. build the durable jobs worker before adding multiple agents;
-5. get one real Thought Interpreter Agent path working end to end;
-6. proceed through the active plan without stopping for non-critical polish.
+1. `AGENTS.md` — repository-wide invariants and working rules.
+2. `CODEX_MASTER_PROMPT.md` — autonomous execution contract.
+3. GitHub issue **#13** — Thursday command center and issue order.
+4. `THURSDAY_STATUS.md` — live truth about what is actually complete.
+5. `docs/exec-plans/active/THURSDAY-DEMO.md` — detailed deadline plan.
+6. `docs/product-specs/PRD-v1.md` — indexed product source of truth; load only relevant sections.
+7. `ARCHITECTURE.md` — system boundaries.
 
-Do not mark completion while `make demo-smoke` fails.
+The goal is not to produce scaffolding or another plan. The goal is to get the real Thursday end-to-end path working against real Supabase/OpenAI services as soon as credentials are available.
+
+Begin with issue **#1**, then **#3**, then **#5**. Build the durable jobs worker before adding multiple agents. Mobile shell/local persistence may proceed in parallel, but backend contracts remain authoritative.
+
+After every meaningful milestone:
+- run relevant checks;
+- update `THURSDAY_STATUS.md`;
+- update/close the corresponding GitHub issue only when acceptance criteria are actually satisfied;
+- immediately continue to the next unblocked P0 item.
+
+Do not mark completion while `make demo-smoke` fails. Before feature freeze, the real smoke path must pass twice consecutively.
