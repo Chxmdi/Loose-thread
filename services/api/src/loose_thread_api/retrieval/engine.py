@@ -10,7 +10,6 @@ from loose_thread_api.models.retrievals import RetrievalContexts, WindowLabel
 
 RANKING_VERSION = "capacity-v1"
 MINIMUM_SCORE = 0.42
-RECENT_SURFACE_HOURS = 12
 CONTEXT_HARD_FILTER_CONFIDENCE = 0.8
 
 WEIGHTS = {
@@ -111,11 +110,6 @@ class RetrievalEngine:
             return False
         if candidate.snooze_until is not None and candidate.snooze_until > now:
             return False
-        if candidate.last_surfaced_at is not None:
-            hours = (now - candidate.last_surfaced_at).total_seconds() / 3600
-            if hours < RECENT_SURFACE_HOURS:
-                return False
-
         temporal_type = candidate.temporal.get("type")
         resolved_at = self._datetime(candidate.temporal.get("resolved_at"))
         if temporal_type == "not_before" and resolved_at is not None and resolved_at > now:
@@ -154,7 +148,7 @@ class RetrievalEngine:
         affinity = max(0.0, min(1.0, candidate.kind_affinity))
         temporal = self._temporal_relevance(candidate.temporal, now)
         novelty = max(0.1, 1 - candidate.surface_count * 0.18)
-        fatigue = min(0.25, candidate.surface_count * 0.025)
+        fatigue = 0.0
         if candidate.last_surfaced_at is not None:
             days_since = max(0.0, (now - candidate.last_surfaced_at).total_seconds() / 86400)
             fatigue += max(0.0, 0.16 * (1 - days_since / 14))

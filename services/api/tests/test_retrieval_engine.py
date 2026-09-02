@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -99,6 +100,24 @@ def test_high_confidence_context_filters_but_low_confidence_only_reweights() -> 
         now=NOW,
     )
     assert [item.candidate.id for item in ranked] == [low.id]
+
+
+def test_recently_surfaced_thought_is_penalized_instead_of_hidden() -> None:
+    recent = replace(
+        candidate(1),
+        last_surfaced_at=NOW - timedelta(hours=1),
+        surface_count=12,
+    )
+
+    ranked, selected = RetrievalEngine().rank(
+        [recent],
+        window=WindowLabel.FIFTEEN,
+        contexts=RetrievalContexts(),
+        now=NOW,
+    )
+
+    assert [item.candidate.id for item in selected] == [recent.id]
+    assert ranked[0].components["fatigue_penalty"] > 0
 
 
 def test_near_duplicates_are_suppressed_and_diversity_is_bounded() -> None:

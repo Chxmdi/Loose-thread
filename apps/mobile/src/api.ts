@@ -14,6 +14,11 @@ const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
 const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
 let client: SupabaseClient | null = null;
+const retryDelays = [0, 300, 800, 1_500];
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
 
 function getSupabase(): SupabaseClient {
   if (!supabaseUrl || !supabaseKey) throw new Error("Cloud sync is not configured");
@@ -43,17 +48,41 @@ async function accessToken(): Promise<string> {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!apiUrl) throw new Error("Cloud sync is not configured");
   const token = await accessToken();
-  const response = await fetch(`${apiUrl}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      ...init?.headers,
-    },
-  });
-  if (!response.ok) throw new Error(`Request failed (${response.status})`);
-  if (response.status === 204) return undefined as T;
-  return (await response.json()) as T;
+  let lastTransportError: unknown;
+
+  for (let attempt = 0; attempt < retryDelays.length; attempt += 1) {
+    const retryDelay = retryDelays[attempt] ?? 0;
+    if (retryDelay > 0) await delay(retryDelay);
+    try {
+      const response = await fetch(`${apiUrl}${path}`, {
+        ...init,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          ...init?.headers,
+        },
+      });
+      if (response.status === 204) return undefined as T;
+
+      const body = await response.text();
+      if (response.ok) return JSON.parse(body) as T;
+
+      const retryableRouterNotFound = response.status === 404 && body.trim() === "Not Found";
+      const retryableGatewayFailure = [502, 503, 504].includes(response.status);
+      if ((retryableRouterNotFound || retryableGatewayFailure) && attempt < retryDelays.length - 1) {
+        continue;
+      }
+      throw new Error(`Request failed (${response.status})`);
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("Request failed")) throw error;
+      lastTransportError = error;
+      if (attempt === retryDelays.length - 1) break;
+    }
+  }
+
+  throw lastTransportError instanceof Error
+    ? lastTransportError
+    : new Error("Could not reach Loose Thread");
 }
 
 export async function syncCapture(capture: LocalCapture): Promise<void> {
