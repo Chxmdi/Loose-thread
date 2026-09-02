@@ -24,11 +24,11 @@ WEIGHTS = {
 }
 
 CAPACITY_FIT: dict[WindowLabel, dict[str, float]] = {
-    WindowLabel.FIVE: {"spark": 1.0, "unknown": 0.35},
-    WindowLabel.FIFTEEN: {"spark": 0.8, "snack": 1.0, "unknown": 0.35},
-    WindowLabel.THIRTY: {"snack": 1.0, "session": 0.85, "unknown": 0.35},
-    WindowLabel.SIXTY: {"snack": 0.65, "session": 1.0, "deep": 0.65, "unknown": 0.35},
-    WindowLabel.A_WHILE: {"session": 0.85, "deep": 1.0, "unknown": 0.35},
+    WindowLabel.FIVE: {"spark": 1.0, "unknown": 0.4},
+    WindowLabel.FIFTEEN: {"spark": 0.8, "snack": 1.0, "unknown": 0.4},
+    WindowLabel.THIRTY: {"snack": 1.0, "session": 0.85, "unknown": 0.4},
+    WindowLabel.SIXTY: {"snack": 0.65, "session": 1.0, "deep": 0.65, "unknown": 0.4},
+    WindowLabel.A_WHILE: {"session": 0.85, "deep": 1.0, "unknown": 0.4},
 }
 
 

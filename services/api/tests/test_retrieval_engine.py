@@ -77,6 +77,20 @@ def test_fixed_corpus_is_deterministic_and_capacity_eligible() -> None:
     assert {item.candidate.duration_bucket for item in first_ranked} == {"spark", "snack"}
 
 
+def test_fresh_open_thought_with_unknown_duration_clears_minimum_score() -> None:
+    unknown = candidate(1, duration="unknown", score_age_days=0)
+
+    ranked, selected = RetrievalEngine().rank(
+        [unknown],
+        window=WindowLabel.FIFTEEN,
+        contexts=RetrievalContexts(),
+        now=NOW,
+    )
+
+    assert ranked[0].score >= 0.42
+    assert [item.candidate.id for item in selected] == [unknown.id]
+
+
 def test_high_confidence_context_filters_but_low_confidence_only_reweights() -> None:
     engine = RetrievalEngine()
     high = candidate(
