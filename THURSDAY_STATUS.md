@@ -23,6 +23,7 @@
 - [x] Expo web demo vertical slice
 - [x] Agent/debug trace endpoint
 - [x] In-app architecture inspector with jobs, traces, ranking, feedback, and calibration
+- [x] Ordered end-to-end process trace with every agent input, decision, and output handoff
 - [x] Local/e2e eval harness
 - [x] Deployment
 - [x] Real demo smoke test passing
@@ -37,6 +38,24 @@ and run the rehearsed demo without editing code. The browser demo, free Render A
 and two-pass hybrid smoke gate are frozen and ready.
 
 ## Milestone log
+### End-to-end agent process trace — September 2, 2026
+Expanded the architecture inspector with a correlation-aware, 20-step trace assembled from persisted
+jobs, agent runs, retrieval impressions, feedback events, and calibration state. The trace shows each
+agent as three distinct stages: evidence loaded, model decision made under a versioned prompt, and
+validated outputs persisted. It also shows the durable worker, embedding, retrieval, session, and
+calibration handoffs around those agents. Agent-run rows now display concrete input and output entity
+IDs alongside model, latency, prompt version, run ID, and OpenAI trace ID.
+
+Verification:
+- The populated browser rehearsal displays all 20 real steps from capture commit through learned
+  preferences becoming available to the next ranking; no placeholder steps are rendered.
+- The trace is unit-tested for ordering, all three agents, entity handoffs, outcome feedback, and
+  calibration, and the empty state is verified not to invent evidence.
+- Repository checks pass with 22 backend tests and 5 mobile unit tests; Playwright passes all three
+  web flows and horizontal-overflow checks at phone and desktop widths.
+- Two fresh consecutive hybrid smoke runs pass all nine stages against the deployed Render API,
+  hosted Supabase, and real OpenAI agents after this inspector change.
+
 ### Visible agentic architecture — September 2, 2026
 Replaced the generic diagnostics list with a complete in-app architecture inspector. The web demo
 now exposes local capture durability, job attempts and correlation IDs, agent model/latency/prompt

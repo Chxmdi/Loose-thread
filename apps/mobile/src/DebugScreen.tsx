@@ -7,12 +7,14 @@ import {
   Cloud,
   CloudOff,
   Database,
+  GitBranch,
   RefreshCw,
   SlidersHorizontal,
   Workflow,
 } from "lucide-react-native";
 
 import type { DebugSnapshot, LocalCapture } from "./types";
+import { buildProcessSteps, type ProcessStep } from "./processTrace";
 
 type DebugScreenProps = {
   queue: LocalCapture[];
@@ -35,6 +37,8 @@ const componentLabels: Record<string, string> = {
 };
 
 export function DebugScreen({ queue, snapshot, loading, onRefresh }: DebugScreenProps) {
+  const processSteps = buildProcessSteps(snapshot);
+
   return (
     <View style={styles.section}>
       <View style={styles.titleRow}>
@@ -50,6 +54,18 @@ export function DebugScreen({ queue, snapshot, loading, onRefresh }: DebugScreen
           <RefreshCw size={20} color="#17211B" />
         </Pressable>
       </View>
+
+      <DebugSection icon={<GitBranch size={18} color="#355C7D" />} title="Latest end-to-end process">
+        {processSteps.map((step, index) => (
+          <ProcessTraceRow
+            key={`${step.actor}-${step.title}-${index}`}
+            step={step}
+            index={index}
+            last={index === processSteps.length - 1}
+          />
+        ))}
+        {!processSteps.length ? <Text style={styles.empty}>No persisted process evidence yet.</Text> : null}
+      </DebugSection>
 
       <DebugSection icon={<Database size={18} color="#355C7D" />} title="Local persistence">
         {queue.slice(0, 6).map((item) => (
@@ -99,6 +115,8 @@ export function DebugScreen({ queue, snapshot, loading, onRefresh }: DebugScreen
             <Text style={styles.traceText}>
               trace {run.openai_trace_id ? shortId(run.openai_trace_id, 18) : "unavailable"} | run {shortId(run.id)}
             </Text>
+            <Text style={styles.entityText}>inputs {formatIds(run.input_entity_ids)}</Text>
+            <Text style={styles.entityText}>outputs {formatIds(run.output_entity_ids)}</Text>
           </View>
         ))}
         {!snapshot?.agentRuns.length ? <Text style={styles.empty}>No agent runs yet.</Text> : null}
@@ -165,6 +183,29 @@ export function DebugScreen({ queue, snapshot, loading, onRefresh }: DebugScreen
   );
 }
 
+function ProcessTraceRow({ step, index, last }: { step: ProcessStep; index: number; last: boolean }) {
+  return (
+    <View style={styles.processRow}>
+      <View style={styles.processRail}>
+        <View style={[styles.processIndex, isComplete(step.status) && styles.processIndexComplete]}>
+          <Text style={[styles.processIndexText, isComplete(step.status) && styles.processIndexTextComplete]}>
+            {index + 1}
+          </Text>
+        </View>
+        {!last ? <View style={styles.processLine} /> : null}
+      </View>
+      <View style={styles.processCopy}>
+        <View style={styles.rowHeading}>
+          <Text style={styles.processActor}>{step.actor}</Text>
+          <Text style={[styles.runStatus, isComplete(step.status) && styles.successText]}>{step.status}</Text>
+        </View>
+        <Text style={styles.processTitle}>{step.title}</Text>
+        <Text style={styles.rowMeta}>{step.detail}</Text>
+      </View>
+    </View>
+  );
+}
+
 function DebugSection({
   icon,
   title,
@@ -186,8 +227,12 @@ function DebugSection({
 }
 
 function StatusDot({ status }: { status: string }) {
-  const color = status === "succeeded" ? "#2D6A4F" : status === "dead_letter" ? "#8F3328" : "#C05A3D";
+  const color = isComplete(status) ? "#2D6A4F" : status === "dead_letter" ? "#8F3328" : "#C05A3D";
   return <View style={[styles.statusDot, { backgroundColor: color }]} />;
+}
+
+function isComplete(status: string): boolean {
+  return ["succeeded", "calibrated", "persisted"].includes(status);
 }
 
 function ScoreComponent({ name, value }: { name: string; value: number }) {
@@ -247,6 +292,12 @@ function shortId(value: string, length = 10): string {
   return value.length <= length ? value : value.slice(0, length);
 }
 
+function formatIds(ids: string[]): string {
+  if (!ids.length) return "none";
+  const visible = ids.slice(0, 3).map((id) => shortId(id));
+  return ids.length > visible.length ? `${visible.join(", ")} +${ids.length - visible.length}` : visible.join(", ");
+}
+
 const styles = StyleSheet.create({
   section: { width: "100%", maxWidth: 760, alignSelf: "center", paddingTop: 32, gap: 24 },
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16 },
@@ -265,10 +316,21 @@ const styles = StyleSheet.create({
   rowTitle: { flex: 1, fontSize: 14, lineHeight: 20, fontWeight: "700", color: "#243028" },
   rowMeta: { fontSize: 12, lineHeight: 18, color: "#59655D" },
   traceText: { fontSize: 11, lineHeight: 17, color: "#355C7D" },
+  entityText: { fontSize: 11, lineHeight: 17, color: "#59655D" },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   runRow: { borderBottomWidth: 1, borderBottomColor: "#D8DDD7", paddingVertical: 10, gap: 2 },
   runStatus: { fontSize: 11, lineHeight: 17, fontWeight: "700", color: "#7D4034" },
   successText: { color: "#2D6A4F" },
+  processRow: { minHeight: 78, flexDirection: "row", gap: 12 },
+  processRail: { width: 28, alignItems: "center" },
+  processIndex: { width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: "#C05A3D", alignItems: "center", justifyContent: "center" },
+  processIndexComplete: { backgroundColor: "#2D6A4F", borderColor: "#2D6A4F" },
+  processIndexText: { fontSize: 11, lineHeight: 15, fontWeight: "800", color: "#7D4034" },
+  processIndexTextComplete: { color: "#FFFFFF" },
+  processLine: { flex: 1, width: 1, backgroundColor: "#BFC7C0", marginVertical: 3 },
+  processCopy: { flex: 1, minWidth: 0, borderBottomWidth: 1, borderBottomColor: "#D8DDD7", paddingBottom: 12, gap: 2 },
+  processActor: { flex: 1, fontSize: 11, lineHeight: 16, fontWeight: "800", color: "#355C7D", textTransform: "uppercase" },
+  processTitle: { fontSize: 14, lineHeight: 20, fontWeight: "700", color: "#243028" },
   rankingBlock: { borderLeftWidth: 3, borderLeftColor: "#355C7D", paddingLeft: 12, paddingVertical: 10, gap: 4 },
   scoreRow: { minHeight: 25, flexDirection: "row", alignItems: "center", gap: 8 },
   scoreLabel: { width: 128, fontSize: 11, lineHeight: 16, color: "#59655D" },

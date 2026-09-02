@@ -29,6 +29,7 @@ test("architecture inspector is complete and responsive", async ({ page }) => {
 
   await expect(page.getByText("Architecture inspector")).toBeVisible();
   for (const section of [
+    "Latest end-to-end process",
     "Local persistence",
     "Durable orchestration",
     "Agent runs",

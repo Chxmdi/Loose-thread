@@ -148,14 +148,18 @@ text capture remains in local storage across backend failure and page restart.
    open-loop, and surface-policy fields.
 3. Enter the related continuation and show the persisted Continuity run with its trace ID.
 4. Choose 15 minutes and show at most three code-ranked cards. Open the architecture inspector and
-   show `capacity-v1`, candidate scores, and their component bars.
+   walk down `Latest end-to-end process`: capture and worker handoff, the Interpreter's three stages,
+   embedding, the Continuity Agent's three stages, and retrieval's candidate, score, and selection
+   stages. Point out the real entity IDs connecting each stage.
 5. Select the related open loop and show the Resumption summary, supporting relationship types,
-   unresolved loop, and next prompt. In the inspector, show the Resumption Agent trace.
+   unresolved loop, and next prompt. In the inspector, show its evidence-load, synthesis, and cited
+   output stages plus the matching Resumption Agent trace and input/output IDs.
 6. Start the session, choose `Something new came up`, and capture the continuation.
 7. Show `session_completed`, `thought_spawned`, and retrieval feedback events.
 8. Open the architecture inspector and show succeeded `apply_feedback_calibration` jobs, calibrated
-   feedback events, observation count, and learned kind/duration/context values. Request another fit
-   and show the learned affinity values inside the persisted ranking components.
+   feedback events, outcome and calibration steps in the ordered trace, observation count, and
+   learned kind/duration/context values. Request another fit and show the learned affinity values
+   inside the persisted ranking components.
 9. Use the failure proof only if time permits; do not alter code during the demo.
 
 ## Recovery
