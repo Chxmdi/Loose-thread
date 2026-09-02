@@ -270,12 +270,21 @@ export default function App() {
         api.agentRuns(),
         api.calibration(),
       ]);
+      const calibrationStatus = [`${calibration.observation_count} observations`];
+      const learnedKind = Object.entries(calibration.kind_affinity)[0];
+      const learnedDuration = Object.entries(calibration.duration_calibration)[0];
+      if (learnedKind) calibrationStatus.push(`${learnedKind[0]} ${learnedKind[1].toFixed(2)}`);
+      if (learnedDuration) {
+        calibrationStatus.push(
+          `${learnedDuration[0]} ${learnedDuration[1] >= 0 ? "+" : ""}${learnedDuration[1].toFixed(2)}`,
+        );
+      }
       setDebugRows([
         ...jobs,
         ...runs,
         {
           agent_name: "feedback_calibration",
-          status: `${calibration.observation_count} observations`,
+          status: calibrationStatus.join(" · "),
         },
       ]);
     } catch {
