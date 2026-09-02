@@ -15,6 +15,10 @@ from loose_thread_api.continuity_handlers import ContinuityJobHandler, Embedding
 from loose_thread_api.continuity_repository import ContinuityRepository
 from loose_thread_api.db.pool import create_database_pool
 from loose_thread_api.embeddings import EmbeddingService
+from loose_thread_api.feedback_calibration import (
+    FeedbackCalibrationJobHandler,
+    FeedbackCalibrationRepository,
+)
 from loose_thread_api.models.jobs import JobType
 from loose_thread_api.orchestration.repository import JobRepository
 from loose_thread_api.orchestration.worker import JobHandler, Worker
@@ -25,6 +29,7 @@ def get_handlers(pool: asyncpg.Pool, settings: Settings) -> dict[JobType, JobHan
     embedding_service = EmbeddingService(settings)
     continuity_agent = ContinuityAgent(settings)
     continuity_repository = ContinuityRepository(pool)
+    feedback_calibration_repository = FeedbackCalibrationRepository(pool)
     return {
         JobType.INTERPRET_CAPTURE: InterpretationJobHandler(
             captures=CaptureRepository(pool),
@@ -43,6 +48,9 @@ def get_handlers(pool: asyncpg.Pool, settings: Settings) -> dict[JobType, JobHan
             relate=continuity_agent.relate,
             model=settings.openai_model_continuity,
             candidate_limit=settings.continuity_candidate_limit,
+        ),
+        JobType.APPLY_FEEDBACK_CALIBRATION: FeedbackCalibrationJobHandler(
+            feedback_calibration_repository
         ),
     }
 

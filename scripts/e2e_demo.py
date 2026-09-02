@@ -152,7 +152,7 @@ def run() -> dict[str, object]:
         require(
             spawned["spawned_from_thought_id"] == selected["thought_id"], "Spawn graph is incorrect"
         )
-        client.wait_jobs()
+        completed_jobs = client.wait_jobs()
 
         session_feedback = client.rest(
             "feedback_events",
@@ -173,6 +173,47 @@ def run() -> dict[str, object]:
             f"Feedback events are incomplete: {sorted(event_types)}",
         )
         step("session, spawned thought, outcome, and RLS-visible feedback")
+
+        calibration_jobs = [
+            row for row in completed_jobs if row["job_type"] == "apply_feedback_calibration"
+        ]
+        require(len(calibration_jobs) >= 2, "Feedback did not enter durable calibration jobs")
+        calibration = client.api("GET", "/v1/debug/calibration", expected=200)
+        require(calibration["observation_count"] >= 2, "Feedback observations were not applied")
+        require(
+            calibration["kind_affinity"].get(selected["kind"], 0.5) > 0.5,
+            "Completed work did not increase the selected kind affinity",
+        )
+        require(
+            calibration["duration_calibration"].get(selected["duration_bucket"], 0.0) > 0.0,
+            "Right-sized work did not calibrate the selected duration",
+        )
+
+        calibrated_retrieval = client.api(
+            "POST",
+            "/v1/retrievals",
+            json={"id": str(uuid4()), "window": "15", "contexts": {}},
+            expected=201,
+        )
+        calibrated_debug = client.api(
+            "GET",
+            f"/v1/debug/retrievals/{calibrated_retrieval['id']}",
+            expected=200,
+        )
+        selected_impression = next(
+            (
+                row
+                for row in calibrated_debug["impressions"]
+                if row["thought_id"] == selected["thought_id"]
+            ),
+            None,
+        )
+        require(selected_impression is not None, "Calibrated thought was absent from the next rank")
+        require(
+            selected_impression["score_components"]["personal_kind_affinity"] > 0.5,
+            "The next retrieval did not consume learned affinity",
+        )
+        step("feedback calibration changed a subsequent retrieval score")
 
         final_runs = client.api("GET", "/v1/debug/agent-runs", expected=200)
         require(
@@ -197,6 +238,12 @@ def run() -> dict[str, object]:
             "resumption_agent_run_id": resumption["agent_run_id"],
             "session_id": session_id,
             "feedback_event_types": sorted(event_types),
+            "feedback_calibration_jobs": len(calibration_jobs),
+            "calibration_observations": calibration["observation_count"],
+            "calibrated_retrieval_id": calibrated_retrieval["id"],
+            "calibrated_kind_affinity": selected_impression["score_components"][
+                "personal_kind_affinity"
+            ],
             "passed": True,
         }
         return evidence

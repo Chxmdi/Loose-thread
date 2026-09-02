@@ -150,6 +150,7 @@ class SessionRepository:
                     "actual_minutes": body.actual_minutes,
                 },
                 idempotency_key=body.idempotency_key,
+                enqueue_calibration=True,
             )
         if row is None:
             raise RuntimeError("session completion did not return a row")
@@ -324,6 +325,7 @@ class SessionRepository:
                 event_type="retrieval_action",
                 event_data={"action": body.action.value},
                 idempotency_key=body.idempotency_key,
+                enqueue_calibration=True,
             )
 
     async def get(self, *, user_id: UUID, session_id: UUID) -> SessionView | None:
@@ -345,14 +347,17 @@ class SessionRepository:
         event_type: str,
         event_data: dict[str, Any],
         idempotency_key: str,
-    ) -> None:
-        await connection.execute(
+        enqueue_calibration: bool = False,
+    ) -> UUID:
+        feedback = await connection.fetchrow(
             """
             insert into public.feedback_events (
                 user_id, session_id, retrieval_id, thought_id,
                 event_type, event_data, idempotency_key
             ) values ($1, $2, $3, $4, $5, $6::jsonb, $7)
-            on conflict (user_id, idempotency_key) do nothing
+            on conflict (user_id, idempotency_key) do update
+            set idempotency_key = public.feedback_events.idempotency_key
+            returning id
             """,
             user_id,
             session_id,
@@ -362,6 +367,27 @@ class SessionRepository:
             event_data,
             idempotency_key,
         )
+        if feedback is None:
+            raise RuntimeError("feedback insert did not return a row")
+        feedback_id = UUID(str(feedback["id"]))
+        if enqueue_calibration:
+            await connection.execute(
+                """
+                insert into public.jobs (
+                    user_id, job_type, entity_type, entity_id, idempotency_key,
+                    payload, correlation_id
+                ) values (
+                    $1, 'apply_feedback_calibration', 'feedback_event', $2, $3,
+                    $4::jsonb, gen_random_uuid()
+                )
+                on conflict (user_id, idempotency_key) do nothing
+                """,
+                user_id,
+                feedback_id,
+                f"apply_feedback_calibration:{feedback_id}:v1",
+                {"feedback_id": str(feedback_id)},
+            )
+        return feedback_id
 
     @staticmethod
     def _view(row: asyncpg.Record) -> SessionView:

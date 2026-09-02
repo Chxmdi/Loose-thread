@@ -58,3 +58,11 @@ export type ResumptionResponse = {
   unresolved_loop: string | null;
   suggested_prompt: string | null;
 };
+
+export type CalibrationDebug = {
+  duration_calibration: Record<string, number>;
+  kind_affinity: Record<string, number>;
+  context_affinity: Record<string, number>;
+  observation_count: number;
+  updated_at: string | null;
+};

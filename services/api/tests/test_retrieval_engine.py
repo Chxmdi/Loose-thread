@@ -134,6 +134,40 @@ def test_recently_surfaced_thought_is_penalized_instead_of_hidden() -> None:
     assert ranked[0].components["fatigue_penalty"] > 0
 
 
+def test_feedback_calibration_changes_the_next_retrieval_score() -> None:
+    original = candidate(1, duration="spark", contexts=["home"])
+    calibrated = replace(
+        original,
+        kind_affinity=0.7,
+        duration_adjustment=0.05,
+        context_affinity=0.7,
+    )
+
+    original_ranked, _ = RetrievalEngine().rank(
+        [original],
+        window=WindowLabel.FIFTEEN,
+        contexts=RetrievalContexts(),
+        now=NOW,
+    )
+    calibrated_ranked, _ = RetrievalEngine().rank(
+        [calibrated],
+        window=WindowLabel.FIFTEEN,
+        contexts=RetrievalContexts(),
+        now=NOW,
+    )
+
+    assert calibrated_ranked[0].score > original_ranked[0].score
+    assert calibrated_ranked[0].components["personal_kind_affinity"] == 0.7
+    assert (
+        calibrated_ranked[0].components["capacity_fit"]
+        > original_ranked[0].components["capacity_fit"]
+    )
+    assert (
+        calibrated_ranked[0].components["context_fit"]
+        > original_ranked[0].components["context_fit"]
+    )
+
+
 def test_near_duplicates_are_suppressed_and_diversity_is_bounded() -> None:
     engine = RetrievalEngine()
     corpus = [

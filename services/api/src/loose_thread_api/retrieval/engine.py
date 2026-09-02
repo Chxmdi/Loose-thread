@@ -54,6 +54,8 @@ class RetrievalCandidate:
     relationship_count: int
     kind_affinity: float
     recent_rejections: int
+    duration_adjustment: float = 0.0
+    context_affinity: float = 0.5
 
 
 @dataclass(frozen=True)
@@ -141,7 +143,13 @@ class RetrievalEngine:
     ) -> ScoredCandidate:
         age_days = max(0.0, (now - candidate.created_at).total_seconds() / 86400)
         rediscovery = (1 - math.exp(-age_days / 7)) * max(0.45, 1 - age_days / 730)
-        capacity = CAPACITY_FIT[window][candidate.duration_bucket]
+        capacity = max(
+            0.0,
+            min(
+                1.0,
+                CAPACITY_FIT[window][candidate.duration_bucket] + candidate.duration_adjustment,
+            ),
+        )
         context_fit = self._context_fit(candidate, contexts)
         open_loop = 0.95 if candidate.open_loop.get("is_open") is True else 0.35
         momentum = min(1.0, candidate.relationship_count / 3)
@@ -174,7 +182,9 @@ class RetrievalEngine:
         remaining = [candidate for candidate in ranked if candidate.score >= self._minimum_score]
         while remaining and len(selected) < 3:
             top = remaining[0]
-            if selected and all(item.candidate.kind == selected[0].candidate.kind for item in selected):
+            if selected and all(
+                item.candidate.kind == selected[0].candidate.kind for item in selected
+            ):
                 diverse = next(
                     (
                         item
@@ -203,10 +213,13 @@ class RetrievalEngine:
         if contexts.low_energy:
             requested.add("low_energy_ok")
         if not requested:
-            return 0.65
-        tags = set(candidate.contexts)
-        matches = len(requested.intersection(tags))
-        return 0.4 + 0.6 * (matches / len(requested))
+            base = 0.65
+        else:
+            tags = set(candidate.contexts)
+            matches = len(requested.intersection(tags))
+            base = 0.4 + 0.6 * (matches / len(requested))
+        adjustment = (max(0.0, min(1.0, candidate.context_affinity)) - 0.5) * 0.2
+        return max(0.0, min(1.0, base + adjustment))
 
     def _temporal_relevance(self, temporal: dict[str, Any], now: datetime) -> float:
         resolved_at = self._datetime(temporal.get("resolved_at"))

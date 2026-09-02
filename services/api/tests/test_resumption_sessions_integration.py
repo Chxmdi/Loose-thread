@@ -13,6 +13,12 @@ from loose_thread_api.agents.resumption import (
     ResumptionTelemetry,
 )
 from loose_thread_api.db.pool import create_database_pool
+from loose_thread_api.feedback_calibration import (
+    CALIBRATION_VERSION,
+    FeedbackCalibrationJobHandler,
+    FeedbackCalibrationRepository,
+)
+from loose_thread_api.models.jobs import Job
 from loose_thread_api.models.resumption import ResumptionAgentResult
 from loose_thread_api.models.retrievals import WindowLabel
 from loose_thread_api.models.sessions import (
@@ -260,6 +266,66 @@ async def test_spawned_thought_and_relation_are_idempotent(
         "select outcome from public.sessions where id = $1",
         session_id,
     ) == "spawned_new"
+
+
+async def test_feedback_calibration_is_durable_and_replay_safe(
+    database_pool: asyncpg.Pool,
+) -> None:
+    thought_id = await insert_thought(database_pool, "Calibrate this unfinished session")
+    repository = SessionRepository(database_pool)
+    session_id = uuid4()
+    await repository.start(
+        user_id=USER,
+        body=SessionStart(
+            id=session_id,
+            thought_id=thought_id,
+            window=WindowLabel.THIRTY,
+            idempotency_key=f"start:{session_id}",
+        ),
+    )
+    await repository.complete(
+        user_id=USER,
+        session_id=session_id,
+        body=SessionComplete(
+            outcome=SessionOutcome.DONE,
+            fit=FitFeedback.RIGHT,
+            actual_minutes=24,
+            idempotency_key=f"complete:{session_id}",
+        ),
+    )
+
+    record = await database_pool.fetchrow(
+        """
+        select job.*
+        from public.jobs job
+        join public.feedback_events feedback on feedback.id = job.entity_id
+        where feedback.session_id = $1 and feedback.event_type = 'session_completed'
+          and job.job_type = 'apply_feedback_calibration'
+        """,
+        session_id,
+    )
+    assert record is not None
+    job = Job.from_record(record)
+    handler = FeedbackCalibrationJobHandler(FeedbackCalibrationRepository(database_pool))
+
+    await handler(job)
+    await handler(job)
+
+    calibration = await database_pool.fetchrow(
+        "select * from public.user_calibration where user_id = $1",
+        USER,
+    )
+    assert calibration is not None
+    assert calibration["observation_count"] == 1
+    assert calibration["kind_affinity"]["unfinished"] == 0.6
+    assert calibration["duration_calibration"]["session"] == 0.05
+    event = await database_pool.fetchrow(
+        "select calibration_applied_at,calibration_version from public.feedback_events where id = $1",
+        job.entity_id,
+    )
+    assert event is not None
+    assert event["calibration_applied_at"] is not None
+    assert event["calibration_version"] == CALIBRATION_VERSION
 
 
 def test_resumption_agent_rejects_unsupplied_evidence_id() -> None:

@@ -5,6 +5,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { authStorage } from "./authStorage";
 import type {
   CaptureResponse,
+  CalibrationDebug,
   LocalCapture,
   ResumptionResponse,
   RetrievalResponse,
@@ -133,4 +134,5 @@ export const api = {
     }),
   jobs: () => request<Array<Record<string, unknown>>>("/v1/debug/jobs"),
   agentRuns: () => request<Array<Record<string, unknown>>>("/v1/debug/agent-runs"),
+  calibration: () => request<CalibrationDebug>("/v1/debug/calibration"),
 };

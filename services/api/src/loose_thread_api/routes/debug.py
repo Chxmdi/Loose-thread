@@ -8,6 +8,8 @@ from pydantic import BaseModel
 
 from loose_thread_api.agents.repository import AgentRunRepository
 from loose_thread_api.auth import AuthenticatedUser, get_current_user
+from loose_thread_api.feedback_calibration import FeedbackCalibrationRepository
+from loose_thread_api.models.calibration import CalibrationDebugView
 from loose_thread_api.models.jobs import JobDebugView
 from loose_thread_api.orchestration.repository import JobRepository
 from loose_thread_api.retrieval.repository import RetrievalRepository
@@ -65,6 +67,16 @@ def get_retrieval_repository(request: Request) -> RetrievalRepository:
     return RetrievalRepository(pool)
 
 
+def get_feedback_calibration_repository(request: Request) -> FeedbackCalibrationRepository:
+    pool = getattr(request.app.state, "database_pool", None)
+    if not isinstance(pool, asyncpg.Pool):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database is not configured",
+        )
+    return FeedbackCalibrationRepository(pool)
+
+
 @router.get("/jobs", response_model=list[JobDebugView])
 async def list_jobs(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
@@ -83,6 +95,17 @@ async def list_agent_runs(
 ) -> list[AgentRunDebugView]:
     runs = await repository.list_for_user(user_id=current_user.id, limit=limit)
     return [AgentRunDebugView.model_validate(run) for run in runs]
+
+
+@router.get("/calibration", response_model=CalibrationDebugView)
+async def get_calibration(
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    repository: Annotated[
+        FeedbackCalibrationRepository,
+        Depends(get_feedback_calibration_repository),
+    ],
+) -> CalibrationDebugView:
+    return await repository.get_for_user(user_id=current_user.id)
 
 
 @router.get("/retrievals/{retrieval_id}")

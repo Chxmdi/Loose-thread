@@ -165,9 +165,7 @@ class RetrievalRepository:
             engine=engine,
         )
 
-    async def get_for_user(
-        self, *, user_id: UUID, retrieval_id: UUID
-    ) -> RetrievalResponse | None:
+    async def get_for_user(self, *, user_id: UUID, retrieval_id: UUID) -> RetrievalResponse | None:
         row = await self._pool.fetchrow(
             """
             select id, window_label, contexts, reshuffle_of, candidate_count,
@@ -202,9 +200,7 @@ class RetrievalRepository:
             created_at=row["created_at"],
         )
 
-    async def debug_for_user(
-        self, *, user_id: UUID, retrieval_id: UUID
-    ) -> dict[str, Any] | None:
+    async def debug_for_user(self, *, user_id: UUID, retrieval_id: UUID) -> dict[str, Any] | None:
         retrieval = await self._pool.fetchrow(
             "select * from public.retrievals where id = $1 and user_id = $2",
             retrieval_id,
@@ -243,6 +239,11 @@ class RetrievalRepository:
                    )::integer as relationship_count,
                    coalesce((calibration.kind_affinity ->> t.kind)::double precision, 0.5)
                        as kind_affinity,
+                   coalesce(
+                       (calibration.duration_calibration ->> t.duration_bucket)::double precision,
+                       0.0
+                   ) as duration_adjustment,
+                   calibration.context_affinity as context_calibration,
                    (
                        select count(*)
                        from public.retrieval_impressions impression
@@ -264,6 +265,15 @@ class RetrievalRepository:
             embedding = values.get("embedding")
             if isinstance(embedding, Vector):
                 values["embedding"] = embedding.to_list()
+            context_calibration = values.pop("context_calibration", None)
+            context_values = [
+                float(context_calibration.get(context, 0.5))
+                for context in values["contexts"]
+                if isinstance(context_calibration, dict)
+            ]
+            values["context_affinity"] = (
+                sum(context_values) / len(context_values) if context_values else 0.5
+            )
             candidates.append(RetrievalCandidate(**values))
         return candidates
 

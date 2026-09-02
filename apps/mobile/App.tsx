@@ -265,8 +265,19 @@ export default function App() {
     const local = await store.list();
     setQueue(local);
     try {
-      const [jobs, runs] = await Promise.all([api.jobs(), api.agentRuns()]);
-      setDebugRows([...jobs, ...runs]);
+      const [jobs, runs, calibration] = await Promise.all([
+        api.jobs(),
+        api.agentRuns(),
+        api.calibration(),
+      ]);
+      setDebugRows([
+        ...jobs,
+        ...runs,
+        {
+          agent_name: "feedback_calibration",
+          status: `${calibration.observation_count} observations`,
+        },
+      ]);
     } catch {
       setDebugRows([]);
     }
