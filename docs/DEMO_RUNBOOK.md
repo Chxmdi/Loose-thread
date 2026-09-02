@@ -115,10 +115,11 @@ Each smoke run creates a fresh anonymous user and proves:
 ```text
 health -> auth -> two captures -> durable jobs -> Interpreter -> embeddings -> Continuity
 -> deterministic <=3 retrieval -> persisted scores -> grounded Resumption -> session
--> spawned thought -> outcome -> RLS-visible feedback and trace metadata
+-> spawned thought -> outcome -> RLS-visible feedback -> durable calibration
+-> learned preference consumed by the next retrieval
 ```
 
-Expected final lines include eight `PASS` stages followed by `Demo smoke passed`. Redacted evidence
+Expected final lines include nine `PASS` stages followed by `Demo smoke passed`. Redacted evidence
 is written to ignored `e2e/results/latest.json`. The Thursday gate counts only when both consecutive
 runs target `DEMO_API_URL` and `DEMO_SUPABASE_URL` for the deployed services.
 
@@ -149,7 +150,10 @@ text capture remains in local storage across backend failure and page restart.
 5. Select the related open loop and show the Resumption summary with evidence IDs.
 6. Start the session, choose `Something new came up`, and capture the continuation.
 7. Show `session_completed`, `thought_spawned`, and retrieval feedback events.
-8. Use the failure proof only if time permits; do not alter code during the demo.
+8. Open diagnostics and show the succeeded `apply_feedback_calibration` jobs plus the
+   `feedback_calibration` observation count. Request another fit and show the learned
+   `personal_kind_affinity` score component.
+9. Use the failure proof only if time permits; do not alter code during the demo.
 
 ## Recovery
 

@@ -19,6 +19,7 @@
 - [x] Deterministic retrieval engine
 - [x] Resumption Agent
 - [x] Session + feedback APIs
+- [x] Durable feedback calibration consumed by retrieval
 - [x] Expo web demo vertical slice
 - [x] Agent/debug trace endpoint
 - [x] Local/e2e eval harness
@@ -35,6 +36,22 @@ and run the rehearsed demo without editing code. The browser demo, free Render A
 and two-pass hybrid smoke gate are frozen and ready.
 
 ## Milestone log
+### Feedback calibration demo gate — September 2, 2026
+Implemented the complete feedback loop behind the web demo. Retrieval starts and session outcomes now
+enqueue idempotent `apply_feedback_calibration` jobs in the same transaction as their immutable
+feedback events. The worker atomically updates bounded per-user kind, duration, and context
+preferences and marks each event applied, so retries cannot double-count it. Retrieval consumes all
+three preference maps, and authenticated diagnostics expose the safe aggregate state.
+
+Verification:
+- Repository checks pass: 21 backend tests, strict MyPy, Ruff, script checks, TypeScript, and 3
+  mobile tests; 25 environment-gated tests remain skipped by the default local command.
+- Hosted Postgres integration tests pass the real migration and prove durable enqueue, preference
+  updates, and replay-safe application.
+- Two consecutive hosted smoke runs pass the full real OpenAI/Supabase/Render flow. The second run
+  produced 10 succeeded jobs, 6 inspectable agent runs, 2 calibration jobs, 2 applied observations,
+  and a subsequent retrieval with learned kind affinity `0.56` (baseline `0.50`).
+
 ### Direct retrieval entry — September 2, 2026
 Added a `See what fits` action on the capture screen so the owner-selected web demo can open the
 capacity picker and retrieve existing thoughts without recording or saving a new capture. The
