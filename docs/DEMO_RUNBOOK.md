@@ -4,8 +4,8 @@
 **Feature freeze:** Wednesday night, September 2, 2026
 
 The configured hosted Supabase project is migrated, anonymous sign-ins are enabled, and all 13
-hosted pgTAP RLS assertions pass. The Render deployment is the remaining hosted prerequisite. No
-code changes are needed after that external deployment is connected.
+hosted pgTAP RLS assertions pass. The zero-cost deployment runs the API on Render's free web plan
+and runs the durable worker locally against hosted Supabase.
 
 ## Required Environment
 
@@ -76,12 +76,14 @@ Expected health response at `http://127.0.0.1:8000/health`:
 1. Confirm anonymous sign-ins remain enabled on the configured dedicated Supabase project.
 2. Confirm `npx supabase db push --db-url <DATABASE_URL> --dry-run --yes` reports no pending
    migrations.
-3. Deploy the repository's `render.yaml` Blueprint. It creates `loose-thread-api` and
-   `loose-thread-worker` from the same verified Docker image.
-4. Set the server-only values above on both services. Render supplies `PORT` to the web service.
+3. Deploy the repository's `render.yaml` Blueprint. It creates only the free `loose-thread-api`
+   web service; this avoids provisioning Render's paid background-worker plan.
+4. Set the server-only values above on the API service. Render supplies `PORT`.
 5. Set `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SUPABASE_URL`, and
    `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` for the mobile build.
-6. Verify the deployed `/health`, API logs, and worker job claims before seeding.
+6. In a local terminal at the repository root, run `make hosted-worker`. It reads the hosted
+   `DATABASE_URL`, Supabase values, and `OPENAI_API_KEY` from the ignored `.env`.
+7. Verify the deployed `/health`, Render API logs, and local worker job claims before seeding.
 
 Production startup fails with a list of missing credential names. The Docker image was verified to
 serve `/health` on a nondefault `PORT=9123`.
@@ -152,7 +154,7 @@ text capture remains in local storage across backend failure and page restart.
 ## Recovery
 
 - **API unavailable:** keep the mobile capture locally, restart `loose-thread-api`, then retry sync.
-- **Worker stopped:** restart `loose-thread-worker`; queued jobs claim automatically.
+- **Worker stopped:** restart `make hosted-worker`; queued jobs claim automatically.
 - **OpenAI failure:** inspect `/v1/debug/jobs`; retry-wait jobs retain raw source and back off.
 - **Supabase unavailable:** do not clear the local queue. Restore connectivity, then retry sync.
 - **Dead job:** correct the credential/provider cause, inspect its safe error code, then requeue only
@@ -168,7 +170,7 @@ text capture remains in local storage across backend failure and page restart.
 - [x] Worker-pause retention and recovery proof passes.
 - [x] Seed/reset commands pass without committing demo state.
 - [ ] Configured hosted Supabase project is migrated and anonymous auth is enabled.
-- [ ] Render API and worker are deployed with production credentials.
+- [ ] Free Render API is deployed with production credentials and the local hosted worker is running.
 - [ ] Deployed `/health` passes.
 - [ ] `make demo-smoke` passes twice consecutively against deployed services.
 - [ ] Expo is pointed at deployed services and verified on a native device/simulator.

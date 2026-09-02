@@ -1,6 +1,6 @@
 API_DIR := services/api
 
-.PHONY: backend-install backend-dev backend-test backend-lint backend-typecheck backend-check scripts-check mobile-check check eval demo-seed demo-reset demo-failure-retain demo-failure-recover demo-smoke
+.PHONY: backend-install backend-dev backend-test backend-lint backend-typecheck backend-check scripts-check mobile-check check eval hosted-worker demo-seed demo-reset demo-failure-retain demo-failure-recover demo-smoke
 
 backend-install:
 	uv sync --directory $(API_DIR) --extra dev
@@ -32,6 +32,9 @@ check: backend-check scripts-check mobile-check
 
 eval: backend-check
 	uv run --directory $(API_DIR) python ../../evals/run.py
+
+hosted-worker:
+	uv run --directory $(API_DIR) python -m loose_thread_api.orchestration
 
 demo-smoke:
 	uv run --directory $(API_DIR) python ../../scripts/e2e_demo.py

@@ -26,14 +26,14 @@
 - [ ] Real demo smoke test passing
 
 ## Current blockers
-- A Render account/deployment has not been connected, so there is no deployed API/worker URL yet.
+- The free Render API Blueprint has not been connected yet, so there is no deployed API URL.
 - No Android/iOS device or simulator tooling is available on this host, so native mobile verification
   remains open even though the Expo app, web runtime, and local persistence tests pass.
 
 ## Next action
-Connect Render and deploy `render.yaml`, then point Expo and the smoke runner at the deployed API.
-Run `make demo-smoke` twice against the deployed services and retain both successful transcripts.
-Native #10 verification also remains external.
+Connect Render and deploy the free API from `render.yaml`, start `make hosted-worker` locally against
+hosted Supabase, then point Expo and the smoke runner at the deployed API. Run `make demo-smoke`
+twice and retain both successful transcripts. Native #10 verification also remains external.
 
 ## Milestone log
 ### Hosted Supabase ready — September 1, 2026
@@ -161,8 +161,9 @@ Verification:
 
 ### Issue #12 deployment and real-service smoke (in progress) — September 1, 2026
 Added strict production credential validation, configurable Expo-web CORS, a `PORT`-aware server
-entry point, a verified Docker image, and a Render Blueprint that runs separate API and durable
-worker services from that image. Added real anonymous-auth demo seed/reset, a full smoke runner,
+entry point, a verified Docker image, and a Render Blueprint for the API. The selected zero-cost
+demo topology runs that API on Render's free plan and the durable worker locally against hosted
+Supabase. Added real anonymous-auth demo seed/reset, a full smoke runner,
 machine-readable redacted evidence, worker-pause retention/recovery proof, and an exact operator
 runbook. The integrated run caught and fixed pgvector `Vector` normalization in duplicate
 suppression, now covered by a real-Postgres regression test.
@@ -176,5 +177,5 @@ Verification:
   feedback.
 - With the worker paused, raw capture evidence and its queued job remain intact; restarting the
   worker recovers that same capture through real processing.
-- Hosted deployment and two consecutive deployed smoke runs remain blocked on the configured
-  project's missing database connection, disabled anonymous auth, and absent Render deployment.
+- The hosted database and anonymous auth are ready. The hybrid deployment and two consecutive smoke
+  runs remain blocked only on connecting the free Render API Blueprint.

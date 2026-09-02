@@ -54,5 +54,7 @@ make demo-reset
 make demo-smoke
 ```
 
-Deployment uses [`render.yaml`](./render.yaml) to run the API and durable worker from the same
-[`services/api/Dockerfile`](./services/api/Dockerfile).
+The zero-cost demo deployment uses [`render.yaml`](./render.yaml) for the free Render API. Run
+`make hosted-worker` locally against hosted Supabase while demonstrating the app. The API and worker
+still use the same backend package and durable Postgres queue, so queued work survives either
+process restarting.
