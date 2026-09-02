@@ -286,6 +286,7 @@ export default function App() {
             onChangeText={setText}
             onSubmit={() => void saveCapture("text", text, null)}
             onRecord={() => void toggleRecording()}
+            onBrowse={() => setScreen("capacity")}
           />
         )}
         {screen === "confirmation" && currentCapture && (
@@ -360,6 +361,7 @@ function CaptureScreen(props: {
   onChangeText: (value: string) => void;
   onSubmit: () => void;
   onRecord: () => void;
+  onBrowse: () => void;
 }) {
   return (
     <View style={styles.section}>
@@ -394,6 +396,17 @@ function CaptureScreen(props: {
       <Text style={styles.recordLabel}>
         {props.recording ? `${Math.floor(props.duration / 1000)}s · tap to keep` : "Tap to record"}
       </Text>
+      {!props.spawnMode && (
+        <Pressable
+          accessibilityLabel="See what fits without capturing"
+          onPress={props.onBrowse}
+          style={({ pressed }) => [styles.browseButton, pressed && styles.pressed]}
+        >
+          <Clock3 size={18} color="#355C7D" />
+          <Text style={styles.browseButtonText}>See what fits</Text>
+          <ChevronRight size={18} color="#355C7D" />
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -546,6 +559,8 @@ const styles = StyleSheet.create({
   orRow: { flexDirection: "row", alignItems: "center", gap: 12 }, rule: { flex: 1, height: 1, backgroundColor: "#D8DDD7" }, orText: { fontSize: 11, fontWeight: "700", color: "#758078" },
   micButton: { width: 92, height: 92, borderRadius: 46, alignSelf: "center", alignItems: "center", justifyContent: "center", backgroundColor: "#C05A3D", borderWidth: 7, borderColor: "#E8CFC7" },
   micActive: { backgroundColor: "#8F3328" }, recordLabel: { textAlign: "center", fontSize: 15, color: "#59655D" },
+  browseButton: { minHeight: 52, borderTopWidth: 1, borderBottomWidth: 1, borderColor: "#D8DDD7", paddingHorizontal: 8, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 },
+  browseButtonText: { color: "#355C7D", fontSize: 16, fontWeight: "700" },
   pressed: { opacity: 0.72 }, disabled: { opacity: 0.35 },
   savedIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#2D6A4F", alignItems: "center", justifyContent: "center" },
   thoughtList: { borderTopWidth: 1, borderBottomWidth: 1, borderColor: "#D8DDD7", paddingVertical: 8 }, thoughtText: { fontSize: 19, lineHeight: 28, color: "#17211B", paddingVertical: 12 },

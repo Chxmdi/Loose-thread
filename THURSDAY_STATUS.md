@@ -35,6 +35,11 @@ and run the rehearsed demo without editing code. The browser demo, free Render A
 and two-pass hybrid smoke gate are frozen and ready.
 
 ## Milestone log
+### Direct retrieval entry — September 2, 2026
+Added a `See what fits` action on the capture screen so the owner-selected web demo can open the
+capacity picker and retrieve existing thoughts without recording or saving a new capture. The
+targeted Playwright navigation test and the live hosted browser flow pass.
+
 ### Web demo freeze — September 2, 2026
 The owner selected Expo web as the Thursday presentation target. Fixed and regression-tested the
 Render CORS preflight for `localhost:8081` and `127.0.0.1:8081`, then verified the real browser path
