@@ -20,13 +20,22 @@ export type LocalCapture = {
 
 export type Thought = {
   id: string;
+  capture_id: string;
+  split_index: number;
   raw_fragment: string;
   refined_text: string;
   kind: string;
   commitment_strength: string;
+  surface_policy: string;
   duration_bucket: string;
   energy: string;
+  contexts: string[];
+  entities: Record<string, string[]>;
+  temporal: Record<string, unknown>;
   open_loop: Record<string, unknown>;
+  confidence: Record<string, number>;
+  status: string;
+  created_at: string;
 };
 
 export type CaptureResponse = {

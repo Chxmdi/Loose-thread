@@ -461,6 +461,9 @@ function ConfirmationScreen(props: {
                 </Text>
               </View>
               <Text style={styles.thoughtText}>{thought.refined_text}</Text>
+              <Text style={styles.thoughtDetail}>
+                {thought.contexts.length ? thought.contexts.join(", ") : "any context"} | {thought.open_loop.is_open ? "open loop" : "closed loop"} | {thought.surface_policy}
+              </Text>
             </View>
           ))
         ) : (
@@ -616,7 +619,7 @@ const styles = StyleSheet.create({
   browseButtonText: { color: "#355C7D", fontSize: 16, fontWeight: "700" },
   pressed: { opacity: 0.72 }, disabled: { opacity: 0.35 },
   savedIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#2D6A4F", alignItems: "center", justifyContent: "center" },
-  thoughtList: { borderTopWidth: 1, borderBottomWidth: 1, borderColor: "#D8DDD7", paddingVertical: 8 }, thoughtItem: { borderBottomWidth: 1, borderBottomColor: "#E4E7E2", paddingVertical: 12, gap: 4 }, thoughtText: { fontSize: 19, lineHeight: 28, color: "#17211B", paddingVertical: 8 }, thoughtMeta: { flex: 1, textAlign: "right", fontSize: 11, lineHeight: 17, color: "#59655D" },
+  thoughtList: { borderTopWidth: 1, borderBottomWidth: 1, borderColor: "#D8DDD7", paddingVertical: 8 }, thoughtItem: { borderBottomWidth: 1, borderBottomColor: "#E4E7E2", paddingVertical: 12, gap: 4 }, thoughtText: { fontSize: 19, lineHeight: 28, color: "#17211B", paddingVertical: 8 }, thoughtMeta: { flex: 1, textAlign: "right", fontSize: 11, lineHeight: 17, color: "#59655D" }, thoughtDetail: { fontSize: 12, lineHeight: 18, color: "#355C7D" },
   primary: { minHeight: 52, borderRadius: 6, backgroundColor: "#2D6A4F", paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 }, primaryText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
   textButton: { minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingHorizontal: 8 }, textButtonText: { color: "#355C7D", fontSize: 14, fontWeight: "600" },
   segmented: { flexDirection: "row", borderWidth: 1, borderColor: "#BFC7C0", borderRadius: 6, overflow: "hidden" }, segment: { flex: 1, minHeight: 48, alignItems: "center", justifyContent: "center", backgroundColor: "#FFFFFF", borderRightWidth: 1, borderRightColor: "#D8DDD7" }, segmentActive: { backgroundColor: "#17211B" }, segmentText: { fontSize: 14, color: "#354139" }, segmentTextActive: { color: "#FFFFFF", fontWeight: "700" },
