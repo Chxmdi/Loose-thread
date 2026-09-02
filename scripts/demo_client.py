@@ -60,7 +60,7 @@ class DemoClient:
         self._http.close()
 
     def health(self) -> dict[str, Any]:
-        response = self._http.get(f"{self.environment.api_url}/health")
+        response = self._backend_request("GET", "/health", headers=None, json=None)
         response.raise_for_status()
         return response.json()
 
@@ -89,9 +89,9 @@ class DemoClient:
     ) -> Any:
         if self.access_token is None:
             raise RuntimeError("Demo client is not authenticated")
-        response = self._http.request(
+        response = self._backend_request(
             method,
-            f"{self.environment.api_url}{path}",
+            path,
             headers={"Authorization": f"Bearer {self.access_token}"},
             json=json,
         )
@@ -101,6 +101,48 @@ class DemoClient:
                 f"{method} {path} failed ({response.status_code}): {response.text[:300]}"
             )
         return None if response.status_code == 204 else response.json()
+
+    def _backend_request(
+        self,
+        method: str,
+        path: str,
+        *,
+        headers: dict[str, str] | None,
+        json: dict[str, Any] | None,
+    ) -> httpx.Response:
+        response: httpx.Response | None = None
+        last_error: httpx.TransportError | None = None
+        max_attempts = 8
+        for attempt in range(1, max_attempts + 1):
+            try:
+                response = self._http.request(
+                    method,
+                    f"{self.environment.api_url}{path}",
+                    headers=headers,
+                    json=json,
+                )
+            except httpx.TransportError as error:
+                response = None
+                last_error = error
+            else:
+                last_error = None
+                render_router_miss = (
+                    response.status_code == 404 and response.text.strip() == "Not Found"
+                )
+                if response.status_code not in {502, 503, 504} and not render_router_miss:
+                    return response
+            if attempt < max_attempts:
+                status = "transport" if response is None else str(response.status_code)
+                print(
+                    f"RETRY Render API {method} {path} status={status} "
+                    f"attempt={attempt}/{max_attempts}"
+                )
+                time.sleep(0.5 * attempt)
+        if response is not None:
+            return response
+        if last_error is None:
+            raise RuntimeError("API request retry loop ended without a response")
+        raise last_error
 
     def rest(self, table: str, *, params: dict[str, str]) -> list[dict[str, Any]]:
         if self.access_token is None:

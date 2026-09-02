@@ -47,13 +47,28 @@ class Worker:
 
     async def run_forever(self, *, poll_seconds: float, stop_event: asyncio.Event) -> None:
         while not stop_event.is_set():
-            processed = await self.run_once()
+            try:
+                processed = await self.run_once()
+            except Exception as exc:
+                self._logger.exception(
+                    "worker_poll_failed",
+                    extra={
+                        "worker_id": self._worker_id,
+                        "error_code": type(exc).__name__,
+                    },
+                )
+                await self._wait_for_poll(poll_seconds, stop_event)
+                continue
             if processed:
                 continue
-            try:
-                await asyncio.wait_for(stop_event.wait(), timeout=max(0.1, poll_seconds))
-            except TimeoutError:
-                continue
+            await self._wait_for_poll(poll_seconds, stop_event)
+
+    @staticmethod
+    async def _wait_for_poll(poll_seconds: float, stop_event: asyncio.Event) -> None:
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=max(0.1, poll_seconds))
+        except TimeoutError:
+            pass
 
     async def _run_job(self, job: Job) -> None:
         handler = self._handlers.get(job.job_type)

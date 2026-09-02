@@ -169,9 +169,10 @@ text capture remains in local storage across backend failure and page restart.
 - [x] Local real-service smoke passes end to end.
 - [x] Worker-pause retention and recovery proof passes.
 - [x] Seed/reset commands pass without committing demo state.
-- [ ] Configured hosted Supabase project is migrated and anonymous auth is enabled.
-- [ ] Free Render API is deployed with production credentials and the local hosted worker is running.
-- [ ] Deployed `/health` passes.
-- [ ] `make demo-smoke` passes twice consecutively against deployed services.
+- [x] Configured hosted Supabase project is migrated and anonymous auth is enabled.
+- [x] Free Render API is deployed with production credentials and the local hosted worker is running.
+- [x] Deployed `/health` passes.
+- [x] `make demo-smoke` passes twice consecutively against the deployed API and hosted Supabase with
+  the local durable worker.
 - [ ] Expo is pointed at deployed services and verified on a native device/simulator.
 - [ ] Feature freeze is declared; Thursday requires no code edits.

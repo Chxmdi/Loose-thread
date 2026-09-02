@@ -1,6 +1,10 @@
+import asyncio
+import logging
 from datetime import UTC, datetime
 from typing import cast
 from uuid import uuid4
+
+import pytest
 
 from loose_thread_api.models.jobs import Job, JobStatus, JobType
 from loose_thread_api.orchestration.repository import JobRepository
@@ -103,3 +107,39 @@ async def test_worker_persists_handler_failure() -> None:
     assert await worker.run_once() == 1
     assert repository.failed
     assert not repository.completed
+
+
+async def test_worker_recovers_after_poll_connection_failure(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    job = make_running_job()
+    stop_event = asyncio.Event()
+
+    class FlakyRepository(FakeRepository):
+        def __init__(self) -> None:
+            super().__init__(job)
+            self.claim_calls = 0
+
+        async def claim(
+            self, *, worker_id: str, limit: int, lease_seconds: int
+        ) -> list[Job]:
+            del worker_id, limit, lease_seconds
+            self.claim_calls += 1
+            if self.claim_calls == 1:
+                raise ConnectionError("database connection dropped")
+            stop_event.set()
+            return []
+
+    repository = FlakyRepository()
+    worker = Worker(
+        repository=cast(JobRepository, repository),
+        worker_id="worker-a",
+        handlers={},
+        lease_seconds=60,
+    )
+
+    with caplog.at_level(logging.ERROR, logger="loose_thread.worker"):
+        await worker.run_forever(poll_seconds=0.001, stop_event=stop_event)
+
+    assert repository.claim_calls == 2
+    assert "worker_poll_failed" in caplog.text

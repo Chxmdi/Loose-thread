@@ -1,0 +1,10 @@
+uv run --directory services/api python ../../scripts/e2e_demo.py
+PASS dependency-light backend health
+PASS anonymous Supabase authentication
+PASS capture retained, interpreted, embedded, and linked
+PASS second related capture completed through durable orchestration
+PASS interpreter and continuity run telemetry
+PASS deterministic bounded retrieval with persisted scores
+PASS grounded Resumption Agent with persisted evidence IDs
+PASS session, spawned thought, outcome, and RLS-visible feedback
+Demo smoke passed; results=C:\Users\ookel\Documents\Codex\2026-09-01\cl\work\Loose-thread\e2e\results\latest.json

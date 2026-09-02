@@ -22,18 +22,19 @@
 - [ ] Expo mobile vertical slice
 - [x] Agent/debug trace endpoint
 - [x] Local/e2e eval harness
-- [ ] Deployment
-- [ ] Real demo smoke test passing
+- [x] Deployment
+- [x] Real demo smoke test passing
 
 ## Current blockers
-- The free Render API Blueprint has not been connected yet, so there is no deployed API URL.
 - No Android/iOS device or simulator tooling is available on this host, so native mobile verification
   remains open even though the Expo app, web runtime, and local persistence tests pass.
+- The Wednesday-night freeze declaration and Thursday no-code rehearsal are scheduled but cannot be
+  completed before their calendar gates.
 
 ## Next action
-Connect Render and deploy the free API from `render.yaml`, start `make hosted-worker` locally against
-hosted Supabase, then point Expo and the smoke runner at the deployed API. Run `make demo-smoke`
-twice and retain both successful transcripts. Native #10 verification also remains external.
+Verify Expo on a native device or simulator, then execute the Wednesday-night freeze checklist and
+Thursday no-code rehearsal. The free Render API, hosted Supabase, local hosted worker, and two-pass
+hybrid smoke gate are ready.
 
 ## Milestone log
 ### Hosted Supabase ready — September 1, 2026
@@ -167,9 +168,13 @@ Supabase. Added real anonymous-auth demo seed/reset, a full smoke runner,
 machine-readable redacted evidence, worker-pause retention/recovery proof, and an exact operator
 runbook. The integrated run caught and fixed pgvector `Vector` normalization in duplicate
 suppression, now covered by a real-Postgres regression test.
+The hosted rehearsal also exposed a dropped database connection that terminated the local worker
+and intermittent bare `404 Not Found` responses from Render's free router. The worker polling
+boundary now reconnects after transient failures, and the idempotent smoke client applies bounded,
+visible retries only to transport/gateway failures and Render's distinguishable bare router 404.
 
 Verification:
-- Backend checks pass with Ruff, strict MyPy, and 38 tests; the Docker image serves `/health` on
+- Backend checks pass with Ruff, strict MyPy, and 39 tests; the Docker image serves `/health` on
   nondefault `PORT=9123`.
 - `make demo-seed` and `make demo-reset` pass against local Supabase Auth/Postgres.
 - The real local smoke passes twice consecutively: capture -> jobs -> real OpenAI agents -> pgvector
@@ -177,5 +182,7 @@ Verification:
   feedback.
 - With the worker paused, raw capture evidence and its queued job remain intact; restarting the
   worker recovers that same capture through real processing.
-- The hosted database and anonymous auth are ready. The hybrid deployment and two consecutive smoke
-  runs remain blocked only on connecting the free Render API Blueprint.
+- `https://loose-thread-api.onrender.com/health` passes on the free deployed API.
+- Two fresh hybrid smoke runs pass consecutively against the Render API and hosted Supabase while
+  the local durable worker executes the real OpenAI pipeline. Redacted transcripts are retained in
+  `e2e/results/hosted-smoke-1.txt` and `e2e/results/hosted-smoke-2.txt`.
