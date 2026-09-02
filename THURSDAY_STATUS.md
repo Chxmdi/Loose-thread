@@ -38,7 +38,10 @@ and two-pass hybrid smoke gate are frozen and ready.
 ### Direct retrieval entry — September 2, 2026
 Added a `See what fits` action on the capture screen so the owner-selected web demo can open the
 capacity picker and retrieve existing thoughts without recording or saving a new capture. The
-targeted Playwright navigation test and the live hosted browser flow pass.
+targeted Playwright navigation test and the live hosted browser flow pass. Follow-up testing in the
+owner's Edge session exposed and fixed transient Render request handling, permanent suppression from
+cumulative surface fatigue, and a `0.419` versus `0.420` threshold edge for fresh unknown-duration
+thoughts. The recovered capture synced and `Finish learning RAG` then appeared as a fitting card.
 
 ### Web demo freeze — September 2, 2026
 The owner selected Expo web as the Thursday presentation target. Fixed and regression-tested the
@@ -185,7 +188,7 @@ boundary now reconnects after transient failures, and the idempotent smoke clien
 visible retries only to transport/gateway failures and Render's distinguishable bare router 404.
 
 Verification:
-- Backend checks pass with Ruff, strict MyPy, and 40 tests; the Docker image serves `/health` on
+- Backend checks pass with Ruff, strict MyPy, and 42 tests; the Docker image serves `/health` on
   nondefault `PORT=9123`.
 - `make demo-seed` and `make demo-reset` pass against local Supabase Auth/Postgres.
 - The real local smoke passes twice consecutively: capture -> jobs -> real OpenAI agents -> pgvector
