@@ -22,6 +22,7 @@
 - [x] Durable feedback calibration consumed by retrieval
 - [x] Expo web demo vertical slice
 - [x] Agent/debug trace endpoint
+- [x] In-app architecture inspector with jobs, traces, ranking, feedback, and calibration
 - [x] Local/e2e eval harness
 - [x] Deployment
 - [x] Real demo smoke test passing
@@ -36,6 +37,26 @@ and run the rehearsed demo without editing code. The browser demo, free Render A
 and two-pass hybrid smoke gate are frozen and ready.
 
 ## Milestone log
+### Visible agentic architecture — September 2, 2026
+Replaced the generic diagnostics list with a complete in-app architecture inspector. The web demo
+now exposes local capture durability, job attempts and correlation IDs, agent model/latency/prompt
+and OpenAI trace IDs, persisted deterministic retrieval scores and every ranking component,
+feedback-event calibration status, and all learned kind/duration/context values. Capture confirmation
+shows the Thought Interpreter's structured fields, and the session view shows the Resumption Agent's
+cited supporting thoughts, relationship types, unresolved loop, and suggested prompt. Selecting a
+card now records the missing `start` feedback action before calibration.
+
+Verification:
+- Two fresh consecutive hosted smoke runs pass with authenticated feedback diagnostics included in
+  the contract.
+- Real browser rehearsal passes Interpreter -> Continuity -> retrieval -> cited Resumption -> start
+  feedback -> session completion -> durable calibration.
+- The final live inspector shows all three agent types with trace IDs, three ranked candidates with
+  persisted components, five calibrated events, task affinity `0.74`, snack adjustment `+0.15`, and
+  home context affinity `0.54`.
+- Playwright passes the no-capture path, failure persistence, all inspector sections, and horizontal
+  overflow checks at `390x844` and `1440x900`.
+
 ### Feedback calibration demo gate — September 2, 2026
 Implemented the complete feedback loop behind the web demo. Retrieval starts and session outcomes now
 enqueue idempotent `apply_feedback_calibration` jobs in the same transaction as their immutable

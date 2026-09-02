@@ -144,15 +144,18 @@ text capture remains in local storage across backend failure and page restart.
 ## Demo Script
 
 1. Open the capture-first app and enter the first 15-minute recommendation-model thought.
-2. Show immediate local save, then the capture/job/agent diagnostics.
-3. Enter the related continuation and show the persisted Continuity run.
-4. Choose 15 minutes and show at most three code-ranked cards plus score diagnostics.
-5. Select the related open loop and show the Resumption summary with evidence IDs.
+2. Show immediate local save and the Interpreter's kind, duration, energy, commitment, context,
+   open-loop, and surface-policy fields.
+3. Enter the related continuation and show the persisted Continuity run with its trace ID.
+4. Choose 15 minutes and show at most three code-ranked cards. Open the architecture inspector and
+   show `capacity-v1`, candidate scores, and their component bars.
+5. Select the related open loop and show the Resumption summary, supporting relationship types,
+   unresolved loop, and next prompt. In the inspector, show the Resumption Agent trace.
 6. Start the session, choose `Something new came up`, and capture the continuation.
 7. Show `session_completed`, `thought_spawned`, and retrieval feedback events.
-8. Open diagnostics and show the succeeded `apply_feedback_calibration` jobs plus the
-   `feedback_calibration` observation count. Request another fit and show the learned
-   `personal_kind_affinity` score component.
+8. Open the architecture inspector and show succeeded `apply_feedback_calibration` jobs, calibrated
+   feedback events, observation count, and learned kind/duration/context values. Request another fit
+   and show the learned affinity values inside the persisted ranking components.
 9. Use the failure proof only if time permits; do not alter code during the demo.
 
 ## Recovery
