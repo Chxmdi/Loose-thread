@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 import asyncpg
 import pytest
+from fastapi.testclient import TestClient
 
 from loose_thread_api.agents.resumption import (
     ResumptionAgent,
@@ -12,12 +13,15 @@ from loose_thread_api.agents.resumption import (
     ResumptionOutput,
     ResumptionTelemetry,
 )
+from loose_thread_api.auth import AuthenticatedUser, get_current_user
+from loose_thread_api.config import Settings
 from loose_thread_api.db.pool import create_database_pool
 from loose_thread_api.feedback_calibration import (
     CALIBRATION_VERSION,
     FeedbackCalibrationJobHandler,
     FeedbackCalibrationRepository,
 )
+from loose_thread_api.main import create_app
 from loose_thread_api.models.jobs import Job
 from loose_thread_api.models.resumption import ResumptionAgentResult
 from loose_thread_api.models.retrievals import WindowLabel
@@ -326,6 +330,29 @@ async def test_feedback_calibration_is_durable_and_replay_safe(
     assert event is not None
     assert event["calibration_applied_at"] is not None
     assert event["calibration_version"] == CALIBRATION_VERSION
+    visible_feedback = await FeedbackCalibrationRepository(
+        database_pool
+    ).list_feedback_for_user(user_id=USER)
+    completion = next(item for item in visible_feedback if item.event_type == "session_completed")
+    assert completion.id == job.entity_id
+    assert completion.event_data["fit"] == "right"
+    assert completion.calibration_version == CALIBRATION_VERSION
+
+    app = create_app(Settings(database_url=os.environ["DATABASE_URL"]))
+
+    async def override_user() -> AuthenticatedUser:
+        return AuthenticatedUser(id=USER, is_anonymous=True)
+
+    app.dependency_overrides[get_current_user] = override_user
+    with TestClient(app) as client:
+        response = client.get("/v1/debug/feedback")
+
+    assert response.status_code == 200
+    response_completion = next(
+        item for item in response.json() if item["event_type"] == "session_completed"
+    )
+    assert response_completion["id"] == str(job.entity_id)
+    assert response_completion["calibration_version"] == CALIBRATION_VERSION
 
 
 def test_resumption_agent_rejects_unsupplied_evidence_id() -> None:

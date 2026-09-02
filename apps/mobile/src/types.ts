@@ -66,3 +66,74 @@ export type CalibrationDebug = {
   observation_count: number;
   updated_at: string | null;
 };
+
+export type JobDebug = {
+  id: string;
+  job_type: string;
+  entity_type: string;
+  entity_id: string;
+  status: string;
+  attempts: number;
+  max_attempts: number;
+  correlation_id: string;
+  last_error_code: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AgentRunDebug = {
+  id: string;
+  job_id: string | null;
+  agent_name: string;
+  model: string;
+  schema_version: string;
+  prompt_version: string;
+  status: string;
+  input_entity_ids: string[];
+  output_entity_ids: string[];
+  openai_trace_id: string | null;
+  correlation_id: string;
+  latency_ms: number | null;
+  usage: Record<string, unknown>;
+  error_code: string | null;
+  created_at: string;
+};
+
+export type FeedbackEventDebug = {
+  id: string;
+  session_id: string | null;
+  retrieval_id: string | null;
+  thought_id: string | null;
+  event_type: string;
+  event_data: Record<string, unknown>;
+  calibration_applied_at: string | null;
+  calibration_version: string | null;
+  created_at: string;
+};
+
+export type RetrievalDebug = {
+  retrieval: {
+    id: string;
+    ranking_version: string;
+    candidate_count: number;
+    result_thought_ids: string[];
+    created_at: string;
+  };
+  impressions: Array<{
+    thought_id: string;
+    rank_position: number;
+    score: number;
+    score_components: Record<string, number>;
+    selected: boolean;
+    action: string | null;
+    created_at: string;
+  }>;
+};
+
+export type DebugSnapshot = {
+  jobs: JobDebug[];
+  agentRuns: AgentRunDebug[];
+  feedback: FeedbackEventDebug[];
+  calibration: CalibrationDebug;
+  retrieval: RetrievalDebug | null;
+};

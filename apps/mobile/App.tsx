@@ -26,7 +26,6 @@ import {
   ChevronRight,
   CircleStop,
   Clock3,
-  Cloud,
   CloudOff,
   Mic,
   Play,
@@ -36,9 +35,11 @@ import {
 } from "lucide-react-native";
 
 import { api, syncCapture } from "./src/api";
+import { DebugScreen } from "./src/DebugScreen";
 import { createCaptureStore, persistBeforeSync, syncPending, type CaptureStore } from "./src/localQueue";
 import type {
   LocalCapture,
+  DebugSnapshot,
   ResumptionResponse,
   RetrievalCard,
   RetrievalResponse,
@@ -89,13 +90,16 @@ export default function App() {
     low_energy: false,
   });
   const [retrieval, setRetrieval] = useState<RetrievalResponse | null>(null);
+  const [lastRetrievalId, setLastRetrievalId] = useState<string | null>(
+    () => globalThis.localStorage?.getItem("loose-thread-last-retrieval-id") ?? null,
+  );
   const [selectedCard, setSelectedCard] = useState<RetrievalCard | null>(null);
   const [resumption, setResumption] = useState<ResumptionResponse | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [spawnSessionId, setSpawnSessionId] = useState<string | null>(null);
   const [fit, setFit] = useState<Fit>("right");
   const [queue, setQueue] = useState<LocalCapture[]>([]);
-  const [debugRows, setDebugRows] = useState<Array<Record<string, unknown>>>([]);
+  const [debugSnapshot, setDebugSnapshot] = useState<DebugSnapshot | null>(null);
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -188,6 +192,8 @@ export default function App() {
         contexts: selectedContexts,
       });
       setRetrieval(response);
+      setLastRetrievalId(response.id);
+      globalThis.localStorage?.setItem("loose-thread-last-retrieval-id", response.id);
       setScreen("results");
     } catch {
       setNotice("Could not reach your saved thoughts just now");
@@ -209,6 +215,11 @@ export default function App() {
           retrieval_id: retrieval.id,
           window: retrieval.window,
           idempotency_key: `start:${id}`,
+        }),
+        api.action(retrieval.id, {
+          action: "start",
+          thought_id: card.thought_id,
+          idempotency_key: `start:${retrieval.id}:${card.thought_id}`,
         }),
       ]);
       setSelectedCard(card);
@@ -262,33 +273,22 @@ export default function App() {
 
   async function loadDebug() {
     setScreen("debug");
+    setBusy(true);
     const local = await store.list();
     setQueue(local);
     try {
-      const [jobs, runs, calibration] = await Promise.all([
+      const [jobs, agentRuns, calibration, feedback, retrievalDebug] = await Promise.all([
         api.jobs(),
         api.agentRuns(),
         api.calibration(),
+        api.feedback(),
+        lastRetrievalId ? api.retrievalDebug(lastRetrievalId) : Promise.resolve(null),
       ]);
-      const calibrationStatus = [`${calibration.observation_count} observations`];
-      const learnedKind = Object.entries(calibration.kind_affinity)[0];
-      const learnedDuration = Object.entries(calibration.duration_calibration)[0];
-      if (learnedKind) calibrationStatus.push(`${learnedKind[0]} ${learnedKind[1].toFixed(2)}`);
-      if (learnedDuration) {
-        calibrationStatus.push(
-          `${learnedDuration[0]} ${learnedDuration[1] >= 0 ? "+" : ""}${learnedDuration[1].toFixed(2)}`,
-        );
-      }
-      setDebugRows([
-        ...jobs,
-        ...runs,
-        {
-          agent_name: "feedback_calibration",
-          status: calibrationStatus.join(" · "),
-        },
-      ]);
+      setDebugSnapshot({ jobs, agentRuns, calibration, feedback, retrieval: retrievalDebug });
     } catch {
-      setDebugRows([]);
+      setDebugSnapshot(null);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -338,7 +338,14 @@ export default function App() {
         {screen === "wrap" && (
           <WrapScreen fit={fit} onFit={setFit} onComplete={(outcome) => void complete(outcome)} />
         )}
-        {screen === "debug" && <DebugScreen queue={queue} rows={debugRows} />}
+        {screen === "debug" && (
+          <DebugScreen
+            queue={queue}
+            snapshot={debugSnapshot}
+            loading={busy}
+            onRefresh={() => void loadDebug()}
+          />
+        )}
         {notice && screen !== "confirmation" && <Text style={styles.notice}>{notice}</Text>}
         {busy && <ActivityIndicator style={styles.loader} color="#2D6A4F" />}
       </ScrollView>
@@ -438,16 +445,29 @@ function ConfirmationScreen(props: {
   onContinue: () => void;
   onRetry: () => void;
 }) {
-  const display = props.thoughts.length
-    ? props.thoughts.map((thought) => thought.refined_text)
-    : [props.capture.rawText ?? "Voice thought saved on this device"];
   return (
     <View style={styles.section}>
       <View style={styles.savedIcon}><Check size={28} color="#FFFFFF" /></View>
       <Text style={styles.title}>Kept.</Text>
       <Text style={styles.subtitle}>{props.notice ?? "Working out where it belongs"}</Text>
       <View style={styles.thoughtList}>
-        {display.map((item, index) => <Text key={`${item}-${index}`} style={styles.thoughtText}>{item}</Text>)}
+        {props.thoughts.length ? (
+          props.thoughts.map((thought) => (
+            <View key={thought.id} style={styles.thoughtItem}>
+              <View style={styles.metaRow}>
+                <Text style={styles.meta}>{thought.kind}</Text>
+                <Text style={styles.thoughtMeta}>
+                  {thought.duration_bucket} | {thought.energy} | {thought.commitment_strength}
+                </Text>
+              </View>
+              <Text style={styles.thoughtText}>{thought.refined_text}</Text>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.thoughtText}>
+            {props.capture.rawText ?? "Voice thought saved on this device"}
+          </Text>
+        )}
       </View>
       <PrimaryButton label="Find something for now" onPress={props.onContinue} icon={<Clock3 size={19} color="#FFFFFF" />} />
       {props.capture.status === "failed" && <TextButton label="Try sync again" onPress={props.onRetry} icon={<RefreshCw size={17} color="#2D6A4F" />} />}
@@ -525,7 +545,24 @@ function SessionScreen({ card, resumption, onWrap }: { card: RetrievalCard; resu
         <Text style={styles.contextText}>{resumption.raw_fragment}</Text>
       </View>
       {resumption.where_you_got_to && <View style={styles.resumeBlock}><Text style={styles.label}>Where you got to</Text><Text style={styles.resumeText}>{resumption.where_you_got_to}</Text></View>}
+      {resumption.supporting_thoughts.length > 0 && (
+        <View style={styles.resumeBlock}>
+          <Text style={styles.label}>Supporting thread</Text>
+          {resumption.supporting_thoughts.map((thought) => (
+            <View key={thought.id} style={styles.evidenceRow}>
+              <Text style={styles.evidenceRelation}>{thought.relation_type}</Text>
+              <Text style={styles.evidenceText}>{thought.refined_text}</Text>
+            </View>
+          ))}
+        </View>
+      )}
       {resumption.unresolved_loop && <Text style={styles.unresolved}>{resumption.unresolved_loop}</Text>}
+      {resumption.suggested_prompt && (
+        <View style={styles.contextBand}>
+          <Text style={styles.contextLabel}>NEXT PROMPT</Text>
+          <Text style={styles.contextText}>{resumption.suggested_prompt}</Text>
+        </View>
+      )}
       <PrimaryButton label="Wrap this session" onPress={onWrap} icon={<Check size={19} color="#FFFFFF" />} />
     </View>
   );
@@ -545,10 +582,6 @@ function WrapScreen({ fit, onFit, onComplete }: { fit: Fit; onFit: (fit: Fit) =>
       </View>
     </View>
   );
-}
-
-function DebugScreen({ queue, rows }: { queue: LocalCapture[]; rows: Array<Record<string, unknown>> }) {
-  return <View style={styles.section}><Text style={styles.eyebrow}>DEVELOPMENT</Text><Text style={styles.title}>Diagnostics</Text><Text style={styles.label}>Local captures</Text>{queue.slice(0, 8).map((item) => <View key={item.id} style={styles.debugRow}>{item.status === "synced" ? <Cloud size={17} color="#2D6A4F" /> : <CloudOff size={17} color="#C05A3D" />}<Text style={styles.debugText}>{item.mode} · {item.status} · attempt {item.attempts}</Text></View>)}<Text style={styles.label}>Jobs and agent runs</Text>{rows.slice(0, 12).map((item, index) => <View key={String(item.id ?? index)} style={styles.debugRow}><View style={styles.statusDot} /><Text style={styles.debugText}>{String(item.job_type ?? item.agent_name ?? "run")} · {String(item.status ?? "unknown")}</Text></View>)}{rows.length === 0 && <Text style={styles.empty}>Cloud diagnostics unavailable.</Text>}</View>;
 }
 
 function PrimaryButton({ label, onPress, icon }: { label: string; onPress: () => void; icon: React.ReactNode }) {
@@ -583,14 +616,13 @@ const styles = StyleSheet.create({
   browseButtonText: { color: "#355C7D", fontSize: 16, fontWeight: "700" },
   pressed: { opacity: 0.72 }, disabled: { opacity: 0.35 },
   savedIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#2D6A4F", alignItems: "center", justifyContent: "center" },
-  thoughtList: { borderTopWidth: 1, borderBottomWidth: 1, borderColor: "#D8DDD7", paddingVertical: 8 }, thoughtText: { fontSize: 19, lineHeight: 28, color: "#17211B", paddingVertical: 12 },
+  thoughtList: { borderTopWidth: 1, borderBottomWidth: 1, borderColor: "#D8DDD7", paddingVertical: 8 }, thoughtItem: { borderBottomWidth: 1, borderBottomColor: "#E4E7E2", paddingVertical: 12, gap: 4 }, thoughtText: { fontSize: 19, lineHeight: 28, color: "#17211B", paddingVertical: 8 }, thoughtMeta: { flex: 1, textAlign: "right", fontSize: 11, lineHeight: 17, color: "#59655D" },
   primary: { minHeight: 52, borderRadius: 6, backgroundColor: "#2D6A4F", paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 }, primaryText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
   textButton: { minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingHorizontal: 8 }, textButtonText: { color: "#355C7D", fontSize: 14, fontWeight: "600" },
   segmented: { flexDirection: "row", borderWidth: 1, borderColor: "#BFC7C0", borderRadius: 6, overflow: "hidden" }, segment: { flex: 1, minHeight: 48, alignItems: "center", justifyContent: "center", backgroundColor: "#FFFFFF", borderRightWidth: 1, borderRightColor: "#D8DDD7" }, segmentActive: { backgroundColor: "#17211B" }, segmentText: { fontSize: 14, color: "#354139" }, segmentTextActive: { color: "#FFFFFF", fontWeight: "700" },
   label: { marginTop: 10, fontSize: 14, lineHeight: 20, fontWeight: "700", color: "#354139" }, chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, chip: { minHeight: 40, borderRadius: 20, borderWidth: 1, borderColor: "#BFC7C0", backgroundColor: "#FFFFFF", paddingHorizontal: 15, alignItems: "center", justifyContent: "center" }, chipActive: { borderColor: "#355C7D", backgroundColor: "#E5EBF0" }, chipText: { fontSize: 14, color: "#59655D" }, chipTextActive: { color: "#27455F", fontWeight: "700" },
   optionCard: { borderWidth: 1, borderColor: "#C9D0CA", borderRadius: 8, backgroundColor: "#FFFFFF", padding: 18, gap: 15 }, metaRow: { flexDirection: "row", justifyContent: "space-between" }, meta: { fontSize: 12, fontWeight: "700", textTransform: "uppercase", color: "#2D6A4F" }, bucket: { fontSize: 12, fontWeight: "700", color: "#C05A3D" }, cardTitle: { fontSize: 21, lineHeight: 29, fontWeight: "600", color: "#17211B" }, startRow: { minHeight: 46, borderRadius: 6, backgroundColor: "#2D6A4F", flexDirection: "row", gap: 9, alignItems: "center", justifyContent: "center" }, startText: { color: "#FFFFFF", fontWeight: "700" }, cardActions: { flexDirection: "row", justifyContent: "space-between", flexWrap: "wrap" },
-  contextBand: { backgroundColor: "#E5EBF0", borderLeftWidth: 4, borderLeftColor: "#355C7D", padding: 16 }, contextLabel: { fontSize: 11, fontWeight: "800", color: "#355C7D", marginBottom: 8 }, contextText: { fontSize: 16, lineHeight: 24, color: "#2D3942" }, resumeBlock: { borderTopWidth: 1, borderColor: "#D8DDD7", paddingTop: 10 }, resumeText: { fontSize: 18, lineHeight: 27, color: "#17211B" }, unresolved: { fontSize: 16, lineHeight: 24, color: "#7D4034" },
+  contextBand: { backgroundColor: "#E5EBF0", borderLeftWidth: 4, borderLeftColor: "#355C7D", padding: 16 }, contextLabel: { fontSize: 11, fontWeight: "800", color: "#355C7D", marginBottom: 8 }, contextText: { fontSize: 16, lineHeight: 24, color: "#2D3942" }, resumeBlock: { borderTopWidth: 1, borderColor: "#D8DDD7", paddingTop: 10, gap: 8 }, resumeText: { fontSize: 18, lineHeight: 27, color: "#17211B" }, evidenceRow: { borderLeftWidth: 3, borderLeftColor: "#BFC7C0", paddingLeft: 10, gap: 2 }, evidenceRelation: { fontSize: 11, lineHeight: 16, fontWeight: "700", textTransform: "uppercase", color: "#355C7D" }, evidenceText: { fontSize: 14, lineHeight: 21, color: "#354139" }, unresolved: { fontSize: 16, lineHeight: 24, color: "#7D4034" },
   outcomeList: { borderTopWidth: 1, borderColor: "#D8DDD7" }, outcomeRow: { minHeight: 58, borderBottomWidth: 1, borderColor: "#D8DDD7", flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, outcomeText: { fontSize: 17, color: "#17211B", fontWeight: "600" },
-  debugRow: { minHeight: 44, borderBottomWidth: 1, borderColor: "#D8DDD7", flexDirection: "row", gap: 10, alignItems: "center" }, debugText: { flex: 1, fontSize: 13, color: "#354139" }, statusDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#355C7D" },
   empty: { paddingVertical: 26, fontSize: 17, lineHeight: 25, color: "#59655D" }, notice: { textAlign: "center", color: "#7D4034", marginTop: 20, fontSize: 14 }, loader: { marginTop: 24 },
 });

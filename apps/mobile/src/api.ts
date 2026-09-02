@@ -6,9 +6,13 @@ import { authStorage } from "./authStorage";
 import type {
   CaptureResponse,
   CalibrationDebug,
+  AgentRunDebug,
+  FeedbackEventDebug,
+  JobDebug,
   LocalCapture,
   ResumptionResponse,
   RetrievalResponse,
+  RetrievalDebug,
 } from "./types";
 
 const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
@@ -132,7 +136,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  jobs: () => request<Array<Record<string, unknown>>>("/v1/debug/jobs"),
-  agentRuns: () => request<Array<Record<string, unknown>>>("/v1/debug/agent-runs"),
+  jobs: () => request<JobDebug[]>("/v1/debug/jobs"),
+  agentRuns: () => request<AgentRunDebug[]>("/v1/debug/agent-runs"),
   calibration: () => request<CalibrationDebug>("/v1/debug/calibration"),
+  feedback: () => request<FeedbackEventDebug[]>("/v1/debug/feedback"),
+  retrievalDebug: (retrievalId: string) =>
+    request<RetrievalDebug>(`/v1/debug/retrievals/${retrievalId}`),
 };

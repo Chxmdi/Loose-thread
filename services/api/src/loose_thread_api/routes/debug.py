@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from loose_thread_api.agents.repository import AgentRunRepository
 from loose_thread_api.auth import AuthenticatedUser, get_current_user
 from loose_thread_api.feedback_calibration import FeedbackCalibrationRepository
-from loose_thread_api.models.calibration import CalibrationDebugView
+from loose_thread_api.models.calibration import CalibrationDebugView, FeedbackEventDebugView
 from loose_thread_api.models.jobs import JobDebugView
 from loose_thread_api.orchestration.repository import JobRepository
 from loose_thread_api.retrieval.repository import RetrievalRepository
@@ -106,6 +106,18 @@ async def get_calibration(
     ],
 ) -> CalibrationDebugView:
     return await repository.get_for_user(user_id=current_user.id)
+
+
+@router.get("/feedback", response_model=list[FeedbackEventDebugView])
+async def list_feedback(
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    repository: Annotated[
+        FeedbackCalibrationRepository,
+        Depends(get_feedback_calibration_repository),
+    ],
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> list[FeedbackEventDebugView]:
+    return await repository.list_feedback_for_user(user_id=current_user.id, limit=limit)
 
 
 @router.get("/retrievals/{retrieval_id}")

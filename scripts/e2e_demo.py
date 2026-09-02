@@ -172,6 +172,20 @@ def run() -> dict[str, object]:
             }.issubset(event_types),
             f"Feedback events are incomplete: {sorted(event_types)}",
         )
+        feedback_debug = client.api("GET", "/v1/debug/feedback", expected=200)
+        visible_event_types = {row["event_type"] for row in feedback_debug}
+        require(
+            event_types.issubset(visible_event_types),
+            "Authenticated feedback diagnostics omitted persisted events",
+        )
+        require(
+            all(
+                row["calibration_applied_at"] and row["calibration_version"] == "feedback-v1"
+                for row in feedback_debug
+                if row["event_type"] in {"retrieval_action", "session_completed"}
+            ),
+            "Calibrated feedback events are not inspectable",
+        )
         step("session, spawned thought, outcome, and RLS-visible feedback")
 
         calibration_jobs = [
@@ -238,6 +252,7 @@ def run() -> dict[str, object]:
             "resumption_agent_run_id": resumption["agent_run_id"],
             "session_id": session_id,
             "feedback_event_types": sorted(event_types),
+            "feedback_debug_count": len(feedback_debug),
             "feedback_calibration_jobs": len(calibration_jobs),
             "calibration_observations": calibration["observation_count"],
             "calibrated_retrieval_id": calibrated_retrieval["id"],

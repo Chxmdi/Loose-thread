@@ -6,7 +6,7 @@ from uuid import UUID
 
 import asyncpg
 
-from loose_thread_api.models.calibration import CalibrationDebugView
+from loose_thread_api.models.calibration import CalibrationDebugView, FeedbackEventDebugView
 from loose_thread_api.models.jobs import Job
 from loose_thread_api.orchestration.worker import JobHandlerError
 
@@ -127,6 +127,26 @@ class FeedbackCalibrationRepository:
         if row is None:
             return CalibrationDebugView()
         return CalibrationDebugView.model_validate(dict(row))
+
+    async def list_feedback_for_user(
+        self,
+        *,
+        user_id: UUID,
+        limit: int = 20,
+    ) -> list[FeedbackEventDebugView]:
+        rows = await self._pool.fetch(
+            """
+            select id, session_id, retrieval_id, thought_id, event_type, event_data,
+                   calibration_applied_at, calibration_version, created_at
+            from public.feedback_events
+            where user_id = $1
+            order by created_at desc, id
+            limit $2
+            """,
+            user_id,
+            max(1, min(limit, 100)),
+        )
+        return [FeedbackEventDebugView.model_validate(dict(row)) for row in rows]
 
     @staticmethod
     def _signals(event_type: str, event_data: dict[str, Any]) -> CalibrationSignals:
