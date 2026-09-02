@@ -19,24 +19,30 @@
 - [x] Deterministic retrieval engine
 - [x] Resumption Agent
 - [x] Session + feedback APIs
-- [ ] Expo mobile vertical slice
+- [x] Expo web demo vertical slice
 - [x] Agent/debug trace endpoint
 - [x] Local/e2e eval harness
 - [x] Deployment
 - [x] Real demo smoke test passing
 
 ## Current blockers
-- No Android/iOS device or simulator tooling is available on this host, so native mobile verification
-  remains open even though the Expo app, web runtime, and local persistence tests pass.
-- The Wednesday-night freeze declaration and Thursday no-code rehearsal are scheduled but cannot be
-  completed before their calendar gates.
+None for the owner-selected Expo web demo target. Native packaging remains unverified and is outside
+the Thursday web-demo scope.
 
 ## Next action
-Verify Expo on a native device or simulator, then execute the Wednesday-night freeze checklist and
-Thursday no-code rehearsal. The free Render API, hosted Supabase, local hosted worker, and two-pass
-hybrid smoke gate are ready.
+On Thursday, start `make hosted-worker`, start Expo web with the documented public hosted values,
+and run the rehearsed demo without editing code. The browser demo, free Render API, hosted Supabase,
+and two-pass hybrid smoke gate are frozen and ready.
 
 ## Milestone log
+### Web demo freeze — September 2, 2026
+The owner selected Expo web as the Thursday presentation target. Fixed and regression-tested the
+Render CORS preflight for `localhost:8081` and `127.0.0.1:8081`, then verified the real browser path
+against Render and hosted Supabase: queued-capture recovery, anonymous authentication, multi-thought
+interpretation, deterministic two-card retrieval, grounded resumption, session completion, and
+succeeded job/agent diagnostics. Two additional consecutive hosted smoke runs passed after the fix.
+Feature work is frozen; the Thursday flow requires startup commands only and no code edits.
+
 ### Hosted Supabase ready — September 1, 2026
 Enabled anonymous sign-ins and applied `20260901164219_initial_schema.sql` to the configured hosted
 project. The hosted database passes all 13 pgTAP RLS assertions. A real anonymous Auth session
@@ -174,7 +180,7 @@ boundary now reconnects after transient failures, and the idempotent smoke clien
 visible retries only to transport/gateway failures and Render's distinguishable bare router 404.
 
 Verification:
-- Backend checks pass with Ruff, strict MyPy, and 39 tests; the Docker image serves `/health` on
+- Backend checks pass with Ruff, strict MyPy, and 40 tests; the Docker image serves `/health` on
   nondefault `PORT=9123`.
 - `make demo-seed` and `make demo-reset` pass against local Supabase Auth/Postgres.
 - The real local smoke passes twice consecutively: capture -> jobs -> real OpenAI agents -> pgvector

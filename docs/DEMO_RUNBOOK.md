@@ -174,5 +174,6 @@ text capture remains in local storage across backend failure and page restart.
 - [x] Deployed `/health` passes.
 - [x] `make demo-smoke` passes twice consecutively against the deployed API and hosted Supabase with
   the local durable worker.
-- [ ] Expo is pointed at deployed services and verified on a native device/simulator.
-- [ ] Feature freeze is declared; Thursday requires no code edits.
+- [x] Expo is pointed at deployed services and the owner-selected web target passes the real browser
+  flow from local capture through session wrap and cloud diagnostics.
+- [x] Feature freeze is declared; Thursday requires startup commands only and no code edits.
