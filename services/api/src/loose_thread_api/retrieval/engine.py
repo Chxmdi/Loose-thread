@@ -180,6 +180,8 @@ class RetrievalEngine:
     def _select(self, ranked: list[ScoredCandidate]) -> list[ScoredCandidate]:
         selected: list[ScoredCandidate] = []
         remaining = [candidate for candidate in ranked if candidate.score >= self._minimum_score]
+        if not remaining and ranked:
+            remaining = [ranked[0]]
         while remaining and len(selected) < 3:
             top = remaining[0]
             if selected and all(

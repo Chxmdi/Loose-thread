@@ -188,7 +188,7 @@ def test_near_duplicates_are_suppressed_and_diversity_is_bounded() -> None:
     assert any(item.candidate.kind == "research" for item in selected)
 
 
-def test_fewer_than_three_and_no_result_are_allowed() -> None:
+def test_fewer_than_three_and_no_result_when_nothing_is_eligible_are_allowed() -> None:
     engine = RetrievalEngine()
     eligible = candidate(1, duration="spark")
     done = candidate(2, duration="spark", status="done")
@@ -208,3 +208,17 @@ def test_fewer_than_three_and_no_result_are_allowed() -> None:
         now=NOW,
     )
     assert none == []
+
+
+def test_best_eligible_candidate_is_returned_below_the_score_threshold() -> None:
+    eligible = candidate(1, duration="spark")
+
+    ranked, selected = RetrievalEngine(minimum_score=1.0).rank(
+        [eligible],
+        window=WindowLabel.FIVE,
+        contexts=RetrievalContexts(),
+        now=NOW,
+    )
+
+    assert ranked[0].score < 1.0
+    assert [item.candidate.id for item in selected] == [eligible.id]
