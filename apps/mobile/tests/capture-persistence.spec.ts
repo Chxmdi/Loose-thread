@@ -9,6 +9,7 @@ test("capacity picker is available without a new capture", async ({ page }) => {
 });
 
 test("capture survives unavailable backend and app restart", async ({ page }) => {
+  await page.route("**/v1/captures", (route) => route.abort());
   await page.goto("/");
   await page.getByPlaceholder("Put it here as it comes to you").fill("Keep the smoke test evidence");
   await page.getByLabel("Save text thought").click();
@@ -18,5 +19,31 @@ test("capture survives unavailable backend and app restart", async ({ page }) =>
 
   await page.reload();
   await page.getByLabel("Diagnostics").click();
-  await expect(page.getByText(/text · failed · attempt 1/)).toBeVisible();
+  await expect(page.getByText("text capture")).toBeVisible();
+  await expect(page.getByText(/failed.*attempt 1/)).toBeVisible();
+});
+
+test("architecture inspector is complete and responsive", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Diagnostics").click();
+
+  await expect(page.getByText("Architecture inspector")).toBeVisible();
+  for (const section of [
+    "Local persistence",
+    "Durable orchestration",
+    "Agent runs",
+    "Latest deterministic ranking",
+    "Feedback events",
+    "Learned calibration",
+  ]) {
+    await expect(page.getByText(section, { exact: true })).toBeVisible();
+  }
+  await expect(
+    page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+  ).resolves.toBe(true);
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(
+    page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+  ).resolves.toBe(true);
 });
