@@ -26,21 +26,22 @@
 - [ ] Real demo smoke test passing
 
 ## Current blockers
-- The configured hosted Supabase project is reachable, but its Data API has no Loose Thread tables
-  and anonymous sign-ins are disabled.
-- The hosted `DATABASE_URL` (or database password needed by Supabase CLI) is not configured, so the
-  migration cannot be applied. Publishable and secret API keys are present and supported.
 - A Render account/deployment has not been connected, so there is no deployed API/worker URL yet.
 - No Android/iOS device or simulator tooling is available on this host, so native mobile verification
   remains open even though the Expo app, web runtime, and local persistence tests pass.
 
 ## Next action
-Enable anonymous sign-ins on the configured hosted Supabase project, provide its `DATABASE_URL` (or
-database password), apply migrations, connect Render, and deploy `render.yaml`. Then point Expo at
-those services and run `make demo-smoke` twice against deployed URLs. Native #10 verification also
-remains external.
+Connect Render and deploy `render.yaml`, then point Expo and the smoke runner at the deployed API.
+Run `make demo-smoke` twice against the deployed services and retain both successful transcripts.
+Native #10 verification also remains external.
 
 ## Milestone log
+### Hosted Supabase ready — September 1, 2026
+Enabled anonymous sign-ins and applied `20260901164219_initial_schema.sql` to the configured hosted
+project. The hosted database passes all 13 pgTAP RLS assertions. A real anonymous Auth session
+queried the migrated `captures` Data API endpoint successfully with zero cross-user rows visible;
+the temporary verification user was removed afterward.
+
 ### GitHub bootstrap — September 1, 2026
 Repository is live at `Chxmdi/Loose-thread`. Added Codex-native source-of-truth docs, Thursday execution plan, indexed build-ready PRD, backend health service, CI checks, environment template, issue/PR templates, smoke-test gate, and active execution ledger.
 

@@ -3,9 +3,9 @@
 **Demo date:** Thursday, September 3, 2026  
 **Feature freeze:** Wednesday night, September 2, 2026
 
-The configured hosted Supabase project is reachable, but it currently has no Loose Thread tables and
-anonymous sign-ins are disabled. Its database connection and the Render deployment are not
-configured yet. No code changes are needed after those external settings are supplied.
+The configured hosted Supabase project is migrated, anonymous sign-ins are enabled, and all 13
+hosted pgTAP RLS assertions pass. The Render deployment is the remaining hosted prerequisite. No
+code changes are needed after that external deployment is connected.
 
 ## Required Environment
 
@@ -73,9 +73,9 @@ Expected health response at `http://127.0.0.1:8000/health`:
 
 ## Deployment
 
-1. Enable anonymous sign-ins on the configured dedicated Supabase project.
-2. Supply its database password, link it with `npx supabase link --project-ref <project-ref>`, and run
-   `npx supabase db push --linked`.
+1. Confirm anonymous sign-ins remain enabled on the configured dedicated Supabase project.
+2. Confirm `npx supabase db push --db-url <DATABASE_URL> --dry-run --yes` reports no pending
+   migrations.
 3. Deploy the repository's `render.yaml` Blueprint. It creates `loose-thread-api` and
    `loose-thread-worker` from the same verified Docker image.
 4. Set the server-only values above on both services. Render supplies `PORT` to the web service.
