@@ -12,6 +12,20 @@ def test_health() -> None:
     assert response.json() == {"status": "ok", "service": "loose-thread-api"}
 
 
+def test_local_web_demo_origin_can_preflight_api() -> None:
+    response = TestClient(app).options(
+        "/v1/captures",
+        headers={
+            "Origin": "http://127.0.0.1:8081",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "authorization,content-type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:8081"
+
+
 def test_production_settings_name_every_missing_credential(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

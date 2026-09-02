@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     log_level: str = "INFO"
     port: int = 8000
-    cors_origins: str = ""
+    cors_origins: str = "http://localhost:8081,http://127.0.0.1:8081"
     database_url: SecretStr | None = None
     supabase_url: HttpUrl | None = None
     supabase_anon_key: SecretStr | None = Field(

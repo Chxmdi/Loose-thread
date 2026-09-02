@@ -17,7 +17,7 @@ DATABASE_URL=<Supabase direct or session-pooler Postgres URL>
 SUPABASE_URL=https://<project-ref>.supabase.co
 SUPABASE_PUBLISHABLE_KEY=<publishable key; legacy SUPABASE_ANON_KEY also works>
 OPENAI_API_KEY=<server key>
-CORS_ORIGINS=<Expo web origin, comma-separated if needed>
+CORS_ORIGINS=http://localhost:8081,http://127.0.0.1:8081
 ```
 
 Smoke runner values:
