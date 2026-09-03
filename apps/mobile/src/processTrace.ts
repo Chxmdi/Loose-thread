@@ -5,6 +5,7 @@ export type ProcessStep = {
   title: string;
   detail: string;
   status: string;
+  thoughtIds?: string[];
 };
 
 export function buildProcessSteps(snapshot: DebugSnapshot | null): ProcessStep[] {
@@ -38,6 +39,8 @@ export function buildProcessSteps(snapshot: DebugSnapshot | null): ProcessStep[]
     inputTitle: "Capture text and temporal context loaded",
     decisionTitle: "Thought structure generated under schema",
     outputTitle: "Structured thought records persisted",
+    inputIsThought: false,
+    outputIsThought: true,
   });
 
   if (embedJob) {
@@ -46,6 +49,7 @@ export function buildProcessSteps(snapshot: DebugSnapshot | null): ProcessStep[]
       title: "Thought vector generated and stored",
       detail: `thought ${shortId(embedJob.entity_id)} | attempt ${embedJob.attempts}/${embedJob.max_attempts}`,
       status: embedJob.status,
+      thoughtIds: [embedJob.entity_id],
     });
   }
 
@@ -55,6 +59,7 @@ export function buildProcessSteps(snapshot: DebugSnapshot | null): ProcessStep[]
       title: "Continuity analysis enqueued after embedding",
       detail: `thought ${shortId(linkJob.entity_id)} | job ${shortId(linkJob.id)}`,
       status: linkJob.status,
+      thoughtIds: [linkJob.entity_id],
     });
   }
 
@@ -63,6 +68,8 @@ export function buildProcessSteps(snapshot: DebugSnapshot | null): ProcessStep[]
     inputTitle: "Source thought and nearest candidates loaded",
     decisionTitle: "Relationship types and confidence evaluated",
     outputTitle: "Validated relationship records persisted",
+    inputIsThought: true,
+    outputIsThought: false,
   });
 
   const retrieval = snapshot.retrieval;
@@ -73,18 +80,21 @@ export function buildProcessSteps(snapshot: DebugSnapshot | null): ProcessStep[]
       title: "Eligible candidates assembled",
       detail: `${retrieval.retrieval.candidate_count} candidates | retrieval ${shortId(retrieval.retrieval.id)}`,
       status: "succeeded",
+      thoughtIds: retrieval.impressions.map((item) => item.thought_id),
     });
     steps.push({
       actor: "Retrieval engine",
       title: "Deterministic features scored and persisted",
       detail: `${retrieval.impressions.length} impressions | ${retrieval.retrieval.ranking_version}`,
       status: "succeeded",
+      thoughtIds: retrieval.impressions.map((item) => item.thought_id),
     });
     steps.push({
       actor: "Retrieval engine",
       title: "Bounded result set selected",
       detail: `${selected.length} selected | thoughts ${summarizeIds(selected.map((item) => item.thought_id))}`,
       status: "succeeded",
+      thoughtIds: selected.map((item) => item.thought_id),
     });
   }
 
@@ -94,6 +104,8 @@ export function buildProcessSteps(snapshot: DebugSnapshot | null): ProcessStep[]
     inputTitle: "Selected thought and linked evidence loaded",
     decisionTitle: "Grounded resume context synthesized",
     outputTitle: "Supporting evidence selected and cited",
+    inputIsThought: true,
+    outputIsThought: true,
   });
 
   const retrievalId = retrieval?.retrieval.id;
@@ -109,6 +121,7 @@ export function buildProcessSteps(snapshot: DebugSnapshot | null): ProcessStep[]
       title: "Recommendation start recorded",
       detail: `feedback ${shortId(startEvent.id)} | thought ${shortId(startEvent.thought_id)}`,
       status: feedbackStatus(startEvent.calibration_applied_at),
+      thoughtIds: startEvent.thought_id ? [startEvent.thought_id] : undefined,
     });
   }
 
@@ -121,6 +134,7 @@ export function buildProcessSteps(snapshot: DebugSnapshot | null): ProcessStep[]
       title: "Outcome and fit feedback committed",
       detail: `${feedbackValues(completionEvent.event_data)} | feedback ${shortId(completionEvent.id)}`,
       status: feedbackStatus(completionEvent.calibration_applied_at),
+      thoughtIds: completionEvent.thought_id ? [completionEvent.thought_id] : undefined,
     });
   }
 
@@ -161,6 +175,8 @@ function appendAgentSteps(
     inputTitle: string;
     decisionTitle: string;
     outputTitle: string;
+    inputIsThought: boolean;
+    outputIsThought: boolean;
   },
 ) {
   if (!run) return;
@@ -170,18 +186,21 @@ function appendAgentSteps(
     title: labels.inputTitle,
     detail: `${run.input_entity_ids.length} inputs | ${summarizeIds(run.input_entity_ids)}`,
     status: run.status,
+    thoughtIds: labels.inputIsThought ? run.input_entity_ids : undefined,
   });
   steps.push({
     actor: labels.actor,
     title: labels.decisionTitle,
     detail: `${run.model} | prompt ${run.prompt_version} | trace ${run.openai_trace_id ? shortId(run.openai_trace_id, 18) : "unavailable"}`,
     status: run.status,
+    thoughtIds: labels.inputIsThought ? run.input_entity_ids : undefined,
   });
   steps.push({
     actor: labels.actor,
     title: labels.outputTitle,
     detail: `${run.output_entity_ids.length} outputs | ${summarizeIds(run.output_entity_ids)} | ${run.latency_ms ?? 0} ms`,
     status: run.status,
+    thoughtIds: labels.outputIsThought ? run.output_entity_ids : undefined,
   });
 }
 

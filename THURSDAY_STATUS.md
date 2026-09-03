@@ -38,6 +38,21 @@ and run the rehearsed demo without editing code. The browser demo, free Render A
 and two-pass hybrid smoke gate are frozen and ready.
 
 ## Milestone log
+### Clickable linked threads — September 2, 2026
+Made thought-backed IDs in the process trace, agent-run entity lists, and ranked impressions open a
+grounded linked-thread detail. Supporting relationships in both the active session and thread detail
+are now explicit controls, so the graph can be followed recursively. Navigation maintains a thread
+history and returns to the previous thread, active session, or diagnostics without starting another
+session or recording feedback.
+
+Verification:
+- Live populated-browser rehearsal opened a Diagnostics thought, followed a `SAME_TOPIC` supporting
+  relationship to another thought, returned to the previous thread, and returned to diagnostics.
+- Thread detail displayed the persisted original note plus a grounded summary, relationship types,
+  unresolved loop, and suggested prompt from the Resumption Agent.
+- Two fresh consecutive hosted smoke runs pass all nine real-service stages after the navigation
+  change.
+
 ### End-to-end agent process trace — September 2, 2026
 Expanded the architecture inspector with a correlation-aware, 20-step trace assembled from persisted
 jobs, agent runs, retrieval impressions, feedback events, and calibration state. The trace shows each

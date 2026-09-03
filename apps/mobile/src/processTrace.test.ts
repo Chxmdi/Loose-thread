@@ -97,6 +97,7 @@ describe("buildProcessSteps", () => {
     expect(steps[2]?.detail).toContain("capture-1");
     expect(steps[8]?.detail).toContain("continuity-v1");
     expect(steps[15]?.detail).toContain("thought-2");
+    expect(steps[15]?.thoughtIds).toEqual(["thought-2"]);
     expect(steps[17]?.detail).toContain("partial | right");
     expect(steps.at(-1)?.detail).toContain("2 observations");
   });

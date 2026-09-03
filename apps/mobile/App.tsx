@@ -46,7 +46,7 @@ import type {
   Thought,
 } from "./src/types";
 
-type Screen = "capture" | "confirmation" | "capacity" | "results" | "session" | "wrap" | "debug";
+type Screen = "capture" | "confirmation" | "capacity" | "results" | "session" | "thread" | "wrap" | "debug";
 type ContextKey = "phone_only" | "out" | "home" | "low_energy";
 type Outcome = "done" | "partial" | "stopped" | "spawned_new";
 type Fit = "shorter" | "right" | "longer";
@@ -100,6 +100,8 @@ export default function App() {
   const [fit, setFit] = useState<Fit>("right");
   const [queue, setQueue] = useState<LocalCapture[]>([]);
   const [debugSnapshot, setDebugSnapshot] = useState<DebugSnapshot | null>(null);
+  const [threadTrail, setThreadTrail] = useState<ResumptionResponse[]>([]);
+  const [threadOrigin, setThreadOrigin] = useState<"debug" | "session">("debug");
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -269,7 +271,49 @@ export default function App() {
     setSelectedCard(null);
     setResumption(null);
     setSessionId(null);
+    setThreadTrail([]);
   }
+
+  async function openThread(thoughtId: string, origin?: "debug" | "session") {
+    setBusy(true);
+    setNotice(null);
+    try {
+      const detail = await api.resumption(thoughtId);
+      if (origin) {
+        setThreadOrigin(origin);
+        setThreadTrail([detail]);
+      } else {
+        setThreadTrail((current) => [...current, detail]);
+      }
+      setScreen("thread");
+    } catch {
+      setNotice("Could not open that linked thread just now");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function navigateBack() {
+    if (screen !== "thread") {
+      resetToCapture();
+      return;
+    }
+    if (threadTrail.length > 1) {
+      setThreadTrail((current) => current.slice(0, -1));
+      return;
+    }
+    setThreadTrail([]);
+    setScreen(threadOrigin);
+  }
+
+  const activeThread = threadTrail[threadTrail.length - 1] ?? null;
+  const backLabel = screen === "thread"
+    ? threadTrail.length > 1
+      ? "Back to previous thread"
+      : threadOrigin === "debug"
+        ? "Back to diagnostics"
+        : "Back to session"
+    : "Back to capture";
 
   async function loadDebug() {
     setScreen("debug");
@@ -295,7 +339,13 @@ export default function App() {
   return (
     <View style={styles.root}>
       <StatusBar style="dark" />
-      <Header screen={screen} pending={localPending} onBack={resetToCapture} onDebug={loadDebug} />
+      <Header
+        screen={screen}
+        pending={localPending}
+        onBack={navigateBack}
+        backLabel={backLabel}
+        onDebug={loadDebug}
+      />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {screen === "capture" && (
           <CaptureScreen
@@ -333,7 +383,17 @@ export default function App() {
           <ResultsScreen retrieval={retrieval} onChoose={chooseCard} onAction={cardAction} />
         )}
         {screen === "session" && selectedCard && resumption && (
-          <SessionScreen card={selectedCard} resumption={resumption} onWrap={() => setScreen("wrap")} />
+          <SessionScreen
+            resumption={resumption}
+            onOpenThread={(thoughtId) => void openThread(thoughtId, "session")}
+            onWrap={() => setScreen("wrap")}
+          />
+        )}
+        {screen === "thread" && activeThread && (
+          <ThreadDetailScreen
+            detail={activeThread}
+            onOpenThread={(thoughtId) => void openThread(thoughtId)}
+          />
         )}
         {screen === "wrap" && (
           <WrapScreen fit={fit} onFit={setFit} onComplete={(outcome) => void complete(outcome)} />
@@ -344,6 +404,7 @@ export default function App() {
             snapshot={debugSnapshot}
             loading={busy}
             onRefresh={() => void loadDebug()}
+            onOpenThought={(thoughtId) => void openThread(thoughtId, "debug")}
           />
         )}
         {notice && screen !== "confirmation" && <Text style={styles.notice}>{notice}</Text>}
@@ -357,17 +418,19 @@ function Header({
   screen,
   pending,
   onBack,
+  backLabel,
   onDebug,
 }: {
   screen: Screen;
   pending: number;
   onBack: () => void;
+  backLabel: string;
   onDebug: () => void;
 }) {
   return (
     <View style={styles.header}>
       {screen !== "capture" ? (
-        <IconButton label="Back to capture" onPress={onBack} icon={<ArrowLeft size={21} color="#17211B" />} />
+        <IconButton label={backLabel} onPress={onBack} icon={<ArrowLeft size={21} color="#17211B" />} />
       ) : (
         <View style={styles.logoMark}><View style={styles.logoLine} /><View style={styles.logoDot} /></View>
       )}
@@ -538,27 +601,25 @@ function ResultsScreen({
   );
 }
 
-function SessionScreen({ card, resumption, onWrap }: { card: RetrievalCard; resumption: ResumptionResponse; onWrap: () => void }) {
+function SessionScreen({
+  resumption,
+  onOpenThread,
+  onWrap,
+}: {
+  resumption: ResumptionResponse;
+  onOpenThread: (thoughtId: string) => void;
+  onWrap: () => void;
+}) {
   return (
     <View style={styles.section}>
       <Text style={styles.eyebrow}>IN SESSION</Text>
-      <Text style={styles.title}>{card.refined_text}</Text>
+      <Text style={styles.title}>{resumption.refined_text}</Text>
       <View style={styles.contextBand}>
         <Text style={styles.contextLabel}>ORIGINAL NOTE</Text>
         <Text style={styles.contextText}>{resumption.raw_fragment}</Text>
       </View>
       {resumption.where_you_got_to && <View style={styles.resumeBlock}><Text style={styles.label}>Where you got to</Text><Text style={styles.resumeText}>{resumption.where_you_got_to}</Text></View>}
-      {resumption.supporting_thoughts.length > 0 && (
-        <View style={styles.resumeBlock}>
-          <Text style={styles.label}>Supporting thread</Text>
-          {resumption.supporting_thoughts.map((thought) => (
-            <View key={thought.id} style={styles.evidenceRow}>
-              <Text style={styles.evidenceRelation}>{thought.relation_type}</Text>
-              <Text style={styles.evidenceText}>{thought.refined_text}</Text>
-            </View>
-          ))}
-        </View>
-      )}
+      <SupportingThreads thoughts={resumption.supporting_thoughts} onOpenThread={onOpenThread} />
       {resumption.unresolved_loop && <Text style={styles.unresolved}>{resumption.unresolved_loop}</Text>}
       {resumption.suggested_prompt && (
         <View style={styles.contextBand}>
@@ -567,6 +628,68 @@ function SessionScreen({ card, resumption, onWrap }: { card: RetrievalCard; resu
         </View>
       )}
       <PrimaryButton label="Wrap this session" onPress={onWrap} icon={<Check size={19} color="#FFFFFF" />} />
+    </View>
+  );
+}
+
+function ThreadDetailScreen({
+  detail,
+  onOpenThread,
+}: {
+  detail: ResumptionResponse;
+  onOpenThread: (thoughtId: string) => void;
+}) {
+  return (
+    <View style={styles.section}>
+      <Text style={styles.eyebrow}>LINKED THREAD</Text>
+      <Text style={styles.title}>{detail.refined_text}</Text>
+      <View style={styles.contextBand}>
+        <Text style={styles.contextLabel}>ORIGINAL NOTE</Text>
+        <Text style={styles.contextText}>{detail.raw_fragment}</Text>
+      </View>
+      {detail.where_you_got_to ? (
+        <View style={styles.resumeBlock}>
+          <Text style={styles.label}>Where you got to</Text>
+          <Text style={styles.resumeText}>{detail.where_you_got_to}</Text>
+        </View>
+      ) : null}
+      <SupportingThreads thoughts={detail.supporting_thoughts} onOpenThread={onOpenThread} />
+      {detail.unresolved_loop ? <Text style={styles.unresolved}>{detail.unresolved_loop}</Text> : null}
+      {detail.suggested_prompt ? (
+        <View style={styles.contextBand}>
+          <Text style={styles.contextLabel}>NEXT PROMPT</Text>
+          <Text style={styles.contextText}>{detail.suggested_prompt}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function SupportingThreads({
+  thoughts,
+  onOpenThread,
+}: {
+  thoughts: ResumptionResponse["supporting_thoughts"];
+  onOpenThread: (thoughtId: string) => void;
+}) {
+  if (!thoughts.length) return null;
+  return (
+    <View style={styles.resumeBlock}>
+      <Text style={styles.label}>Supporting threads</Text>
+      {thoughts.map((thought) => (
+        <Pressable
+          accessibilityLabel={`Open thread: ${thought.refined_text}`}
+          key={thought.id}
+          onPress={() => onOpenThread(thought.id)}
+          style={({ pressed }) => [styles.evidenceRow, pressed && styles.pressed]}
+        >
+          <View style={styles.evidenceCopy}>
+            <Text style={styles.evidenceRelation}>{thought.relation_type}</Text>
+            <Text style={styles.evidenceText}>{thought.refined_text}</Text>
+          </View>
+          <ChevronRight size={18} color="#355C7D" />
+        </Pressable>
+      ))}
     </View>
   );
 }
@@ -625,7 +748,7 @@ const styles = StyleSheet.create({
   segmented: { flexDirection: "row", borderWidth: 1, borderColor: "#BFC7C0", borderRadius: 6, overflow: "hidden" }, segment: { flex: 1, minHeight: 48, alignItems: "center", justifyContent: "center", backgroundColor: "#FFFFFF", borderRightWidth: 1, borderRightColor: "#D8DDD7" }, segmentActive: { backgroundColor: "#17211B" }, segmentText: { fontSize: 14, color: "#354139" }, segmentTextActive: { color: "#FFFFFF", fontWeight: "700" },
   label: { marginTop: 10, fontSize: 14, lineHeight: 20, fontWeight: "700", color: "#354139" }, chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, chip: { minHeight: 40, borderRadius: 20, borderWidth: 1, borderColor: "#BFC7C0", backgroundColor: "#FFFFFF", paddingHorizontal: 15, alignItems: "center", justifyContent: "center" }, chipActive: { borderColor: "#355C7D", backgroundColor: "#E5EBF0" }, chipText: { fontSize: 14, color: "#59655D" }, chipTextActive: { color: "#27455F", fontWeight: "700" },
   optionCard: { borderWidth: 1, borderColor: "#C9D0CA", borderRadius: 8, backgroundColor: "#FFFFFF", padding: 18, gap: 15 }, metaRow: { flexDirection: "row", justifyContent: "space-between" }, meta: { fontSize: 12, fontWeight: "700", textTransform: "uppercase", color: "#2D6A4F" }, bucket: { fontSize: 12, fontWeight: "700", color: "#C05A3D" }, cardTitle: { fontSize: 21, lineHeight: 29, fontWeight: "600", color: "#17211B" }, startRow: { minHeight: 46, borderRadius: 6, backgroundColor: "#2D6A4F", flexDirection: "row", gap: 9, alignItems: "center", justifyContent: "center" }, startText: { color: "#FFFFFF", fontWeight: "700" }, cardActions: { flexDirection: "row", justifyContent: "space-between", flexWrap: "wrap" },
-  contextBand: { backgroundColor: "#E5EBF0", borderLeftWidth: 4, borderLeftColor: "#355C7D", padding: 16 }, contextLabel: { fontSize: 11, fontWeight: "800", color: "#355C7D", marginBottom: 8 }, contextText: { fontSize: 16, lineHeight: 24, color: "#2D3942" }, resumeBlock: { borderTopWidth: 1, borderColor: "#D8DDD7", paddingTop: 10, gap: 8 }, resumeText: { fontSize: 18, lineHeight: 27, color: "#17211B" }, evidenceRow: { borderLeftWidth: 3, borderLeftColor: "#BFC7C0", paddingLeft: 10, gap: 2 }, evidenceRelation: { fontSize: 11, lineHeight: 16, fontWeight: "700", textTransform: "uppercase", color: "#355C7D" }, evidenceText: { fontSize: 14, lineHeight: 21, color: "#354139" }, unresolved: { fontSize: 16, lineHeight: 24, color: "#7D4034" },
+  contextBand: { backgroundColor: "#E5EBF0", borderLeftWidth: 4, borderLeftColor: "#355C7D", padding: 16 }, contextLabel: { fontSize: 11, fontWeight: "800", color: "#355C7D", marginBottom: 8 }, contextText: { fontSize: 16, lineHeight: 24, color: "#2D3942" }, resumeBlock: { borderTopWidth: 1, borderColor: "#D8DDD7", paddingTop: 10, gap: 8 }, resumeText: { fontSize: 18, lineHeight: 27, color: "#17211B" }, evidenceRow: { minHeight: 58, borderLeftWidth: 3, borderLeftColor: "#BFC7C0", paddingLeft: 10, paddingVertical: 6, flexDirection: "row", alignItems: "center", gap: 10 }, evidenceCopy: { flex: 1, minWidth: 0, gap: 2 }, evidenceRelation: { fontSize: 11, lineHeight: 16, fontWeight: "700", textTransform: "uppercase", color: "#355C7D" }, evidenceText: { fontSize: 14, lineHeight: 21, color: "#354139" }, unresolved: { fontSize: 16, lineHeight: 24, color: "#7D4034" },
   outcomeList: { borderTopWidth: 1, borderColor: "#D8DDD7" }, outcomeRow: { minHeight: 58, borderBottomWidth: 1, borderColor: "#D8DDD7", flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, outcomeText: { fontSize: 17, color: "#17211B", fontWeight: "600" },
   empty: { paddingVertical: 26, fontSize: 17, lineHeight: 25, color: "#59655D" }, notice: { textAlign: "center", color: "#7D4034", marginTop: 20, fontSize: 14 }, loader: { marginTop: 24 },
 });

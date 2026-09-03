@@ -6,6 +6,7 @@ import {
   Check,
   Cloud,
   CloudOff,
+  ChevronRight,
   Database,
   GitBranch,
   RefreshCw,
@@ -21,6 +22,7 @@ type DebugScreenProps = {
   snapshot: DebugSnapshot | null;
   loading: boolean;
   onRefresh: () => void;
+  onOpenThought: (thoughtId: string) => void;
 };
 
 const componentLabels: Record<string, string> = {
@@ -36,8 +38,9 @@ const componentLabels: Record<string, string> = {
   rejection_penalty: "Rejection penalty",
 };
 
-export function DebugScreen({ queue, snapshot, loading, onRefresh }: DebugScreenProps) {
+export function DebugScreen({ queue, snapshot, loading, onRefresh, onOpenThought }: DebugScreenProps) {
   const processSteps = buildProcessSteps(snapshot);
+  const knownThoughtIds = getKnownThoughtIds(snapshot);
 
   return (
     <View style={styles.section}>
@@ -62,6 +65,7 @@ export function DebugScreen({ queue, snapshot, loading, onRefresh }: DebugScreen
             step={step}
             index={index}
             last={index === processSteps.length - 1}
+            onOpenThought={onOpenThought}
           />
         ))}
         {!processSteps.length ? <Text style={styles.empty}>No persisted process evidence yet.</Text> : null}
@@ -115,8 +119,18 @@ export function DebugScreen({ queue, snapshot, loading, onRefresh }: DebugScreen
             <Text style={styles.traceText}>
               trace {run.openai_trace_id ? shortId(run.openai_trace_id, 18) : "unavailable"} | run {shortId(run.id)}
             </Text>
-            <Text style={styles.entityText}>inputs {formatIds(run.input_entity_ids)}</Text>
-            <Text style={styles.entityText}>outputs {formatIds(run.output_entity_ids)}</Text>
+            <EntityIds
+              label="inputs"
+              ids={run.input_entity_ids}
+              knownThoughtIds={knownThoughtIds}
+              onOpenThought={onOpenThought}
+            />
+            <EntityIds
+              label="outputs"
+              ids={run.output_entity_ids}
+              knownThoughtIds={knownThoughtIds}
+              onOpenThought={onOpenThought}
+            />
           </View>
         ))}
         {!snapshot?.agentRuns.length ? <Text style={styles.empty}>No agent runs yet.</Text> : null}
@@ -129,18 +143,24 @@ export function DebugScreen({ queue, snapshot, loading, onRefresh }: DebugScreen
               {snapshot.retrieval.retrieval.ranking_version} | {snapshot.retrieval.retrieval.candidate_count} candidates
             </Text>
             {snapshot.retrieval.impressions.slice(0, 5).map((impression) => (
-              <View key={impression.thought_id} style={styles.rankingBlock}>
+              <Pressable
+                accessibilityLabel={`Open ranked thread ${shortId(impression.thought_id)}`}
+                key={impression.thought_id}
+                onPress={() => onOpenThought(impression.thought_id)}
+                style={({ pressed }) => [styles.rankingBlock, pressed && styles.pressed]}
+              >
                 <View style={styles.rowHeading}>
                   <Text style={styles.rowTitle}>
                     Rank {impression.rank_position} | score {Number(impression.score).toFixed(3)}
                   </Text>
                   {impression.selected ? <Check size={17} color="#2D6A4F" /> : null}
+                  <ChevronRight size={17} color="#355C7D" />
                 </View>
                 <Text style={styles.traceText}>thought {shortId(impression.thought_id)}</Text>
                 {Object.entries(impression.score_components).map(([name, value]) => (
                   <ScoreComponent key={name} name={name} value={Number(value)} />
                 ))}
-              </View>
+              </Pressable>
             ))}
           </>
         ) : (
@@ -183,7 +203,17 @@ export function DebugScreen({ queue, snapshot, loading, onRefresh }: DebugScreen
   );
 }
 
-function ProcessTraceRow({ step, index, last }: { step: ProcessStep; index: number; last: boolean }) {
+function ProcessTraceRow({
+  step,
+  index,
+  last,
+  onOpenThought,
+}: {
+  step: ProcessStep;
+  index: number;
+  last: boolean;
+  onOpenThought: (thoughtId: string) => void;
+}) {
   return (
     <View style={styles.processRow}>
       <View style={styles.processRail}>
@@ -201,7 +231,57 @@ function ProcessTraceRow({ step, index, last }: { step: ProcessStep; index: numb
         </View>
         <Text style={styles.processTitle}>{step.title}</Text>
         <Text style={styles.rowMeta}>{step.detail}</Text>
+        {step.thoughtIds?.length ? (
+          <View style={styles.threadLinks}>
+            {step.thoughtIds.slice(0, 3).map((thoughtId) => (
+              <Pressable
+                accessibilityLabel={`Open thread ${shortId(thoughtId)}`}
+                key={thoughtId}
+                onPress={() => onOpenThought(thoughtId)}
+                style={({ pressed }) => [styles.threadLink, pressed && styles.pressed]}
+              >
+                <Text style={styles.threadLinkText}>{shortId(thoughtId)}</Text>
+                <ChevronRight size={14} color="#355C7D" />
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
       </View>
+    </View>
+  );
+}
+
+function EntityIds({
+  label,
+  ids,
+  knownThoughtIds,
+  onOpenThought,
+}: {
+  label: string;
+  ids: string[];
+  knownThoughtIds: Set<string>;
+  onOpenThought: (thoughtId: string) => void;
+}) {
+  if (!ids.length) return <Text style={styles.entityText}>{label} none</Text>;
+  return (
+    <View style={styles.entityRow}>
+      <Text style={styles.entityText}>{label}</Text>
+      {ids.slice(0, 3).map((id) =>
+        knownThoughtIds.has(id) ? (
+          <Pressable
+            accessibilityLabel={`Open thread ${shortId(id)}`}
+            key={id}
+            onPress={() => onOpenThought(id)}
+            style={({ pressed }) => [styles.inlineEntityLink, pressed && styles.pressed]}
+          >
+            <Text style={styles.threadLinkText}>{shortId(id)}</Text>
+            <ChevronRight size={12} color="#355C7D" />
+          </Pressable>
+        ) : (
+          <Text key={id} style={styles.entityText}>{shortId(id)}</Text>
+        ),
+      )}
+      {ids.length > 3 ? <Text style={styles.entityText}>+{ids.length - 3}</Text> : null}
     </View>
   );
 }
@@ -292,10 +372,21 @@ function shortId(value: string, length = 10): string {
   return value.length <= length ? value : value.slice(0, length);
 }
 
-function formatIds(ids: string[]): string {
-  if (!ids.length) return "none";
-  const visible = ids.slice(0, 3).map((id) => shortId(id));
-  return ids.length > visible.length ? `${visible.join(", ")} +${ids.length - visible.length}` : visible.join(", ");
+function getKnownThoughtIds(snapshot: DebugSnapshot | null): Set<string> {
+  const ids = new Set<string>();
+  snapshot?.retrieval?.impressions.forEach((item) => ids.add(item.thought_id));
+  snapshot?.feedback.forEach((event) => {
+    if (event.thought_id) ids.add(event.thought_id);
+  });
+  snapshot?.agentRuns.forEach((run) => {
+    if (run.agent_name === "thought_interpreter") run.output_entity_ids.forEach((id) => ids.add(id));
+    if (run.agent_name === "continuity_agent") run.input_entity_ids.forEach((id) => ids.add(id));
+    if (run.agent_name === "resumption_agent") {
+      run.input_entity_ids.forEach((id) => ids.add(id));
+      run.output_entity_ids.forEach((id) => ids.add(id));
+    }
+  });
+  return ids;
 }
 
 const styles = StyleSheet.create({
@@ -317,6 +408,8 @@ const styles = StyleSheet.create({
   rowMeta: { fontSize: 12, lineHeight: 18, color: "#59655D" },
   traceText: { fontSize: 11, lineHeight: 17, color: "#355C7D" },
   entityText: { fontSize: 11, lineHeight: 17, color: "#59655D" },
+  entityRow: { minHeight: 26, flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6 },
+  inlineEntityLink: { minHeight: 24, flexDirection: "row", alignItems: "center", gap: 2, borderBottomWidth: 1, borderBottomColor: "#9AACB8" },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   runRow: { borderBottomWidth: 1, borderBottomColor: "#D8DDD7", paddingVertical: 10, gap: 2 },
   runStatus: { fontSize: 11, lineHeight: 17, fontWeight: "700", color: "#7D4034" },
@@ -331,6 +424,9 @@ const styles = StyleSheet.create({
   processCopy: { flex: 1, minWidth: 0, borderBottomWidth: 1, borderBottomColor: "#D8DDD7", paddingBottom: 12, gap: 2 },
   processActor: { flex: 1, fontSize: 11, lineHeight: 16, fontWeight: "800", color: "#355C7D", textTransform: "uppercase" },
   processTitle: { fontSize: 14, lineHeight: 20, fontWeight: "700", color: "#243028" },
+  threadLinks: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingTop: 5 },
+  threadLink: { minHeight: 30, flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderColor: "#BFC7C0", paddingHorizontal: 8 },
+  threadLinkText: { fontSize: 11, lineHeight: 16, fontWeight: "700", color: "#355C7D" },
   rankingBlock: { borderLeftWidth: 3, borderLeftColor: "#355C7D", paddingLeft: 12, paddingVertical: 10, gap: 4 },
   scoreRow: { minHeight: 25, flexDirection: "row", alignItems: "center", gap: 8 },
   scoreLabel: { width: 128, fontSize: 11, lineHeight: 16, color: "#59655D" },

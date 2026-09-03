@@ -150,7 +150,7 @@ text capture remains in local storage across backend failure and page restart.
 4. Choose 15 minutes and show at most three code-ranked cards. Open the architecture inspector and
    walk down `Latest end-to-end process`: capture and worker handoff, the Interpreter's three stages,
    embedding, the Continuity Agent's three stages, and retrieval's candidate, score, and selection
-   stages. Point out the real entity IDs connecting each stage.
+   stages. Click a thought ID to open its grounded thread detail, then return to diagnostics.
 5. Select the related open loop and show the Resumption summary, supporting relationship types,
    unresolved loop, and next prompt. In the inspector, show its evidence-load, synthesis, and cited
    output stages plus the matching Resumption Agent trace and input/output IDs.
